@@ -250,6 +250,44 @@
 }
 .todo-col-icon { font-size: 14px; }
 
+/* Finish List 줄긋기 토글 버튼 */
+.finish-view-toggle {
+  margin-left: auto;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 4px;
+  padding: 1px 6px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  line-height: 1.5;
+  transition: border-color 0.15s, color 0.15s;
+  flex-shrink: 0;
+}
+.finish-view-toggle .finish-view-toggle-s {
+  text-decoration: line-through;
+}
+.finish-view-toggle.active .finish-view-toggle-s {
+  text-decoration: none;
+}
+.finish-view-toggle:hover {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+.finish-view-toggle.active {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-weak);
+}
+
+/* plain-view: 완료 항목 줄긋기 제거 */
+.todo-col.plain-view .todo-item-text.done {
+  text-decoration: none;
+  color: var(--text);
+  opacity: 1;
+}
+
 /* ===== TODO 아이템 목록 (내부 스크롤) ===== */
 .todo-items {
   display: flex;
@@ -476,6 +514,73 @@
 }
 .reminder-badge-clear:hover { color: var(--danger); }
 
+
+/* ===== 이관 버튼 ===== */
+.todo-carryover-btn {
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 3px;
+  opacity: 0;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s;
+}
+.todo-item:hover .todo-carryover-btn { opacity: 0.4; }
+.todo-carryover-btn:hover { opacity: 1 !important; color: var(--primary); }
+.todo-carryover-btn.active {
+  opacity: 1;
+  color: var(--primary);
+}
+
+/* ===== 날짜 이동 버튼 ===== */
+.todo-move-btn {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 3px;
+  opacity: 0;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.todo-item:hover .todo-move-btn { opacity: 0.4; }
+.todo-move-btn:hover { opacity: 1 !important; }
+
+/* ===== 날짜 이동 입력창 ===== */
+.todo-move-picker {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--primary);
+  border-top: none;
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
+  margin-top: -2px;
+}
+.todo-move-picker-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.todo-move-picker input[type='date'] {
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font);
+  outline: none;
+  min-width: 0;
+}
+.todo-move-picker input[type='date']:focus { border-color: var(--primary); }
 
 /* ===== 복원 / 삭제 버튼 ===== */
 .todo-item-restore {

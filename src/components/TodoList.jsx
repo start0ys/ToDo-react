@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import {
   DndContext,
   closestCenter,
@@ -25,9 +26,11 @@ export default function TodoList({
   onPriority,
   onMove,
   onReminder,
+  onCarryOver,
   emptyMessage,
 }) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const [plainView, setPlainView] = useState(false);
 
   const handleDragEnd = (event) => {
     const { active, over } = event;
@@ -38,10 +41,19 @@ export default function TodoList({
   };
 
   return (
-    <div className="todo-col">
+    <div className={`todo-col${plainView ? ' plain-view' : ''}`}>
       <div className="todo-col-title" style={{ color: accent }}>
         <span className="todo-col-icon">{icon}</span>
         {title}
+        {type === 'finish' && (
+          <button
+            className={`finish-view-toggle${plainView ? ' active' : ''}`}
+            title={plainView ? '줄긋기 보기' : '일반 보기'}
+            onClick={() => setPlainView((v) => !v)}
+          >
+            <span className="finish-view-toggle-s">S</span>
+          </button>
+        )}
       </div>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
@@ -62,6 +74,7 @@ export default function TodoList({
                 onPriority={onPriority}
                 onMove={onMove}
                 onReminder={onReminder}
+                onCarryOver={onCarryOver}
               />
             ))}
           </div>

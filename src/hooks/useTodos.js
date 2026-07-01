@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   query,
   where,
@@ -13,18 +13,47 @@ import { uuid, toDayKey, addDays } from '../lib/date';
 
 export function useTodos(privateKey) {
   const [allTodos, setAllTodos] = useState([]);
+  const [loaded, setLoaded] = useState(false);
+  const carriedOver = useRef(false);
 
   useEffect(() => {
-    if (!isFirebaseAvailable || !privateKey) return;
+    if (!isFirebaseAvailable || !privateKey) {
+      setLoaded(true);
+      return;
+    }
     let alive = true;
     (async () => {
       const snap = await getDocs(query(todoCollection(), where('owner', '==', privateKey)));
       if (!alive) return;
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setAllTodos(list);
+      setLoaded(true);
     })();
     return () => { alive = false; };
   }, [privateKey]);
+
+  // 자동 이관: 앱 첫 로드 시 전날(들)의 이관 설정된 미완료 할일을 오늘에 복사
+  useEffect(() => {
+    if (!loaded || carriedOver.current) return;
+    carriedOver.current = true;
+    const today = toDayKey(new Date());
+    const toCarry = allTodos.filter((t) => t.carryOver && !t.del && t.day < today);
+    if (toCarry.length === 0) return;
+    const todayMaxSeq = allTodos
+      .filter((t) => t.day === today && !t.del)
+      .reduce((m, t) => Math.max(m, t.seq || 0), 0);
+    let seq = todayMaxSeq;
+    const copies = toCarry.map((t) => {
+      const id = uuid();
+      const copy = { id, day: today, text: t.text, del: false, seq: ++seq, owner: t.owner, carryOver: true };
+      if (t.priority) copy.priority = t.priority;
+      return copy;
+    });
+    setAllTodos((prev) => [...prev, ...copies]);
+    if (isFirebaseAvailable) {
+      copies.forEach((copy) => setDoc(doc(db, 'todo', copy.id), copy));
+    }
+  }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const recurringGroups = useMemo(() => {
     const groups = {};
@@ -212,6 +241,12 @@ export function useTodos(privateKey) {
     if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { reminder: value });
   }, []);
 
+  const setCarryOver = useCallback((id, value) => {
+    const flag = value || null;
+    setAllTodos((prev) => prev.map((t) => (t.id === id ? { ...t, carryOver: flag } : t)));
+    if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { carryOver: flag });
+  }, []);
+
   return {
     allTodos,
     recurringGroups,
@@ -228,5 +263,6 @@ export function useTodos(privateKey) {
     setPriority,
     moveToDay,
     setReminder,
+    setCarryOver,
   };
 }

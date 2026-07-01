@@ -142,6 +142,7 @@ export default function TodoPanel({ selectedDay, todos, onSelectDay }) {
           onPriority={todos.setPriority}
           onMove={todos.moveToDay}
           onReminder={todos.setReminder}
+          onCarryOver={todos.setCarryOver}
           emptyMessage={activeTag ? `#${activeTag} 태그 없음` : '😊 할 일이 없어요!'}
         />
         <TodoList

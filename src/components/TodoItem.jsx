@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { requestPermission, getPermissionState } from '../lib/notification.js';
@@ -20,15 +20,24 @@ function nextFiveMin() {
 
 export default function TodoItem({
   item, type,
-  onAction, onRestore, onEdit, onPriority, onMove, onReminder,
+  onAction, onRestore, onEdit, onPriority, onMove, onReminder, onCarryOver,
 }) {
   const [editing, setEditing] = useState(false);
   const [draft,   setDraft]   = useState(item.text);
   const [editDay, setEditDay] = useState(item.day || '');
   const [fading,  setFading]  = useState(false);
   const [showPicker, setShowPicker] = useState(false);
+  const [showMoveInput, setShowMoveInput] = useState(false);
+  const moveInputRef = useRef(null);
 
-  const bellRef = useRef(null); // 벨 버튼 위치 기준
+  const bellRef = useRef(null);
+
+  useEffect(() => {
+    if (showMoveInput && moveInputRef.current) {
+      moveInputRef.current.focus();
+      try { moveInputRef.current.showPicker?.(); } catch (_) {}
+    }
+  }, [showMoveInput]);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
@@ -122,6 +131,26 @@ export default function TodoItem({
           </div>
         )}
 
+        {/* 이관 · 날짜 이동 버튼 (todo) */}
+        {type === 'todo' && (
+          <>
+            {onCarryOver && (
+              <button
+                className={`todo-carryover-btn${item.carryOver ? ' active' : ''}`}
+                title={item.carryOver ? '자동 이관 해제' : '다음날 자동 이관'}
+                onClick={(e) => { e.stopPropagation(); onCarryOver(item.id, !item.carryOver); }}
+              >↩</button>
+            )}
+            {onMove && (
+              <button
+                className="todo-move-btn"
+                title="날짜 이동"
+                onClick={(e) => { e.stopPropagation(); setShowMoveInput((v) => !v); }}
+              >📅</button>
+            )}
+          </>
+        )}
+
         {/* 알림 (todo) */}
         {type === 'todo' && (
           <div className="reminder-wrap">
@@ -157,6 +186,26 @@ export default function TodoItem({
           onConfirm={(t) => { if (onReminder) onReminder(item.id, t); setShowPicker(false); }}
           onCancel={() => setShowPicker(false)}
         />
+      )}
+
+      {/* 날짜 이동 입력창 */}
+      {showMoveInput && (
+        <div className="todo-move-picker">
+          <span className="todo-move-picker-label">이동</span>
+          <input
+            ref={moveInputRef}
+            type="date"
+            defaultValue={item.day}
+            onChange={(e) => {
+              if (e.target.value && e.target.value !== item.day) {
+                onMove(item.id, e.target.value);
+              }
+              setShowMoveInput(false);
+            }}
+            onBlur={() => setShowMoveInput(false)}
+            onKeyDown={(e) => { if (e.key === 'Escape') setShowMoveInput(false); }}
+          />
+        </div>
       )}
     </>
   );
