@@ -180,3 +180,34 @@
 .view-mode .fc-theme-standard th {
   border-color: transparent;
 }
+
+/* ===== 모바일: 헤더 툴바 + 카드 축소 ===== */
+@media (max-width: 900px) {
+  .calendar-card {
+    padding: 10px 10px 12px;
+  }
+
+  .calendar-card .fc .fc-toolbar-title {
+    font-size: 14px;
+  }
+
+  .calendar-card .fc .fc-button {
+    padding: 3px 7px;
+    font-size: 11px;
+    width: 40px;
+  }
+
+  .calendar-card .fc-header-toolbar {
+    gap: 4px;
+  }
+
+  .calendar-card .fc .fc-col-header-cell-cushion {
+    padding: 5px 0;
+    font-size: 12px;
+  }
+
+  .calendar-card .fc .fc-daygrid-day-number {
+    padding: 3px 5px;
+    font-size: 12px;
+  }
+}

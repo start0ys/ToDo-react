@@ -32,6 +32,13 @@ export default function CalendarPanel({
   const [showPicker, setShowPicker] = useState(false);
   const [pickerYear, setPickerYear] = useState(THIS_YEAR);
   const [pickerMonth, setPickerMonth] = useState(new Date().getMonth());
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= 900);
+
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth <= 900);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
 
   const eventSources = useMemo(() => {
     const sources = [{ events: schedules }];
@@ -144,8 +151,8 @@ export default function CalendarPanel({
         customButtons={{
           add: { text: '추가', click: onAdd },
         }}
-        height="100%"
-        expandRows
+        height={isMobile ? 'auto' : '100%'}
+        expandRows={!isMobile}
         editable={!viewMode}
         selectable={!viewMode}
         nowIndicator

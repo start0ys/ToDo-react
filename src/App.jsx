@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Clock from './components/Clock.jsx';
 import CalendarPanel from './components/CalendarPanel.jsx';
 import TodoPanel from './components/TodoPanel.jsx';
@@ -8,7 +8,7 @@ import { useTodos } from './hooks/useTodos.js';
 import { useSchedules } from './hooks/useSchedules.js';
 import { toDayKey, uuid } from './lib/date.js';
 import { textColor } from './lib/color.js';
-import { scheduleNotification, getPermissionState, requestPermission } from './lib/notification.js';
+import { scheduleNotification, getPermissionState } from './lib/notification.js';
 
 const mode = new URLSearchParams(location.search).get('mode') || '';
 
@@ -30,22 +30,6 @@ export default function App() {
   const [theme, setTheme] = useTheme();
   const [selectedDay, setSelectedDay] = useState(() => toDayKey(new Date()));
   const [navigateTo, setNavigateTo] = useState(null);
-  const [notifPerm, setNotifPerm] = useState(() => getPermissionState());
-
-  const handleNotifClick = useCallback(async () => {
-    const state = getPermissionState();
-    if (state === 'unsupported') {
-      alert('이 브라우저는 알림을 지원하지 않습니다.');
-    } else if (state === 'denied') {
-      alert('알림이 차단되어 있습니다.\n브라우저 주소창 왼쪽 🔒 아이콘 → 알림 → 허용으로 변경 후 새로고침해주세요.');
-    } else if (state === 'granted') {
-      alert('알림이 허용되어 있습니다. ✅');
-    } else {
-      const granted = await requestPermission();
-      setNotifPerm(granted ? 'granted' : 'denied');
-    }
-  }, []);
-
   const todos = useTodos(privateKey);
   const { schedules, saveAll } = useSchedules(privateKey);
 
@@ -124,6 +108,7 @@ export default function App() {
   const [modalOpen, setModalOpen] = useState(false);
   const [pendingSelection, setPendingSelection] = useState(null);
   const [editingEvent, setEditingEvent] = useState(null);
+  const [showRepeatModal, setShowRepeatModal] = useState(false);
 
   const isViewMode = mode === '01';
 
@@ -215,23 +200,24 @@ export default function App() {
 
   return (
     <div className="app">
+      {/* 좌상단: 반복 할일 관리 */}
+      {!isViewMode && (
+        <div className="topbar-left">
+          <button
+            className={`repeat-mgr-btn${todos.recurringGroups.length > 0 ? ' has-groups' : ''}`}
+            onClick={() => setShowRepeatModal(true)}
+            title="반복 할일 관리"
+          >
+            🔁
+          </button>
+        </div>
+      )}
+
+      {/* 우상단: 키 · 테마 */}
       <div className="topbar">
         {!isViewMode && (
           <button className="key-btn" onClick={changeKey} title="Private Key 변경">
             🔑
-          </button>
-        )}
-        {!isViewMode && (
-          <button
-            className={`notif-btn notif-${notifPerm}`}
-            onClick={handleNotifClick}
-            title={
-              notifPerm === 'granted' ? '알림 허용됨' :
-              notifPerm === 'denied'  ? '알림 차단됨 — 클릭하여 안내 보기' :
-              '알림 권한 요청'
-            }
-          >
-            {notifPerm === 'granted' ? '🔔' : '🔕'}
           </button>
         )}
         <button
@@ -277,6 +263,44 @@ export default function App() {
           onDelete={handleDeleteEvent}
           onClose={closeModal}
         />
+      )}
+
+      {showRepeatModal && (
+        <div className="modal-overlay" onClick={() => setShowRepeatModal(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={() => setShowRepeatModal(false)}>✕</button>
+            <h3 className="modal-title">🔁 반복 할일 관리</h3>
+            <div className="repeat-modal-list">
+              {todos.recurringGroups.length === 0 ? (
+                <p className="repeat-modal-empty">반복 설정된 할 일이 없습니다.</p>
+              ) : (
+                todos.recurringGroups.map((g) => {
+                  const label = g.text.replace(/#[^\s#]+/g, '').trim() || g.text;
+                  return (
+                    <div key={g.repeatId} className="repeat-modal-item">
+                      <div className="repeat-modal-item-info">
+                        <span className="repeat-modal-item-text">{label}</span>
+                        <span className="repeat-modal-item-meta">
+                          {g.count}개 · {g.days[0]} ~ {g.days[g.days.length - 1]}
+                        </span>
+                      </div>
+                      <button
+                        className="repeat-modal-del-btn"
+                        onClick={() => {
+                          if (confirm(`"${label}" 반복 할 일 전체(${g.count}개)를 삭제하시겠습니까?`)) {
+                            todos.deleteRecurring(g.repeatId);
+                          }
+                        }}
+                      >
+                        삭제
+                      </button>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

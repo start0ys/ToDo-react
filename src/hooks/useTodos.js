@@ -26,6 +26,22 @@ export function useTodos(privateKey) {
     return () => { alive = false; };
   }, [privateKey]);
 
+  const recurringGroups = useMemo(() => {
+    const groups = {};
+    for (const t of allTodos) {
+      if (!t.repeatId) continue;
+      if (!groups[t.repeatId]) {
+        groups[t.repeatId] = { repeatId: t.repeatId, text: t.text, days: [] };
+      }
+      groups[t.repeatId].days.push(t.day);
+    }
+    return Object.values(groups).map((g) => ({
+      ...g,
+      days: g.days.sort(),
+      count: g.days.length,
+    }));
+  }, [allTodos]);
+
   const checkMap = useMemo(() => {
     const byDay = {};
     for (const t of allTodos) {
@@ -87,9 +103,10 @@ export function useTodos(privateKey) {
       const startDate = new Date(day + 'T00:00');
       const newItems = [];
 
+      const repeatId = uuid();
       const makeItem = (targetDay) => {
         const id = uuid();
-        return { id, day: targetDay, text, del: false, seq: maxSeq(targetDay, false) + 1, owner: privateKey };
+        return { id, day: targetDay, text, del: false, seq: maxSeq(targetDay, false) + 1, owner: privateKey, repeatId };
       };
 
       if (repeat === 'daily') {
@@ -141,6 +158,16 @@ export function useTodos(privateKey) {
     if (isFirebaseAvailable) deleteDoc(doc(db, 'todo', id));
   }, []);
 
+  const deleteRecurring = useCallback((repeatId) => {
+    setAllTodos((prev) => {
+      const toDelete = prev.filter((t) => t.repeatId === repeatId);
+      const deleteIds = new Set(toDelete.map((t) => t.id));
+      if (isFirebaseAvailable) toDelete.forEach((t) => deleteDoc(doc(db, 'todo', t.id)));
+      return prev.filter((t) => !deleteIds.has(t.id));
+    });
+  }, []);
+
+
   const restoreTodo = useCallback(
     (id) => {
       setAllTodos((prev) => {
@@ -187,12 +214,14 @@ export function useTodos(privateKey) {
 
   return {
     allTodos,
+    recurringGroups,
     checkMap,
     getDayLists,
     addTodo,
     addRecurringTodo,
     finishTodo,
     deleteTodo,
+    deleteRecurring,
     restoreTodo,
     updateText,
     reorder,
