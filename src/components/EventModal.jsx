@@ -1,33 +1,48 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { COLOR_PRESETS } from '../lib/color.js';
+import { requestPermission, getPermissionState } from '../lib/notification.js';
+import TimePicker from './TimePicker.jsx';
 import './modal.css';
 
-const REMINDER_OPTIONS = [
-  { value: 'none', label: '없음' },
-  { value: '5',    label: '5분 전' },
-  { value: '10',   label: '10분 전' },
-  { value: '15',   label: '15분 전' },
-  { value: '30',   label: '30분 전' },
-  { value: '60',   label: '1시간 전' },
-  { value: '120',  label: '2시간 전' },
-  { value: '1440', label: '1일 전' },
-];
+function nextFiveMin() {
+  const d = new Date();
+  d.setSeconds(0, 0);
+  const rem = d.getMinutes() % 5;
+  d.setMinutes(d.getMinutes() + (rem === 0 ? 5 : 5 - rem));
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
 export default function EventModal({ initial, isEdit, onConfirm, onDelete, onClose }) {
-  const [title, setTitle] = useState(initial.title);
-  const [color, setColor] = useState(initial.color);
-  const [reminder, setReminder] = useState(
-    initial.reminder != null ? String(initial.reminder) : 'none'
+  const [title,   setTitle]   = useState(initial.title);
+  const [color,   setColor]   = useState(initial.color);
+  const [reminderEnabled, setReminderEnabled] = useState(!!initial.reminder);
+  const [reminderTime,    setReminderTime]    = useState(
+    typeof initial.reminder === 'string' ? initial.reminder : nextFiveMin()
   );
+  const [showPicker, setShowPicker] = useState(false);
+  const timeBtnRef = useRef(null);
 
   useEffect(() => {
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    const onKey = (e) => { if (e.key === 'Escape' && !showPicker) onClose(); };
     document.addEventListener('keyup', onKey);
     return () => document.removeEventListener('keyup', onKey);
-  }, [onClose]);
+  }, [onClose, showPicker]);
+
+  const handleReminderToggle = async (e) => {
+    const checked = e.target.checked;
+    if (checked) {
+      if (getPermissionState() === 'denied') {
+        alert('알림이 차단되어 있습니다.\n브라우저 주소창 🔒 → 알림 → 허용 후 새로고침해주세요.');
+        return;
+      }
+      await requestPermission();
+      if (!initial.reminder) setReminderTime(nextFiveMin());
+    }
+    setReminderEnabled(checked);
+  };
 
   const handleConfirm = () => {
-    onConfirm(title, color, reminder !== 'none' ? Number(reminder) : null);
+    onConfirm(title, color, reminderEnabled ? reminderTime : null);
   };
 
   return (
@@ -49,12 +64,7 @@ export default function EventModal({ initial, isEdit, onConfirm, onDelete, onClo
 
         <div className="color-presets">
           {COLOR_PRESETS.map((p) => (
-            <button
-              key={p.value}
-              className="color-chip"
-              style={{ background: p.value }}
-              onClick={() => setColor(p.value)}
-            >
+            <button key={p.value} className="color-chip" style={{ background: p.value }} onClick={() => setColor(p.value)}>
               {p.name}
             </button>
           ))}
@@ -65,26 +75,45 @@ export default function EventModal({ initial, isEdit, onConfirm, onDelete, onClo
           <input type="color" value={color} onChange={(e) => setColor(e.target.value)} />
         </label>
 
-        <label className="modal-row">
+        {/* 알림 */}
+        <div className="modal-row modal-reminder-row">
           <span>알림</span>
-          <select
-            className="modal-select"
-            value={reminder}
-            onChange={(e) => setReminder(e.target.value)}
-          >
-            {REMINDER_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </label>
+          <label className="reminder-toggle-label">
+            <input
+              type="checkbox"
+              className="reminder-toggle-check"
+              checked={reminderEnabled}
+              onChange={handleReminderToggle}
+            />
+            <span className="reminder-toggle-text">{reminderEnabled ? '켜짐' : '꺼짐'}</span>
+          </label>
+          {reminderEnabled && (
+            <button
+              ref={timeBtnRef}
+              className="modal-time-btn"
+              onClick={() => setShowPicker(true)}
+              title="알림 시간 선택"
+            >
+              🔔 {reminderTime}
+            </button>
+          )}
+        </div>
 
         <div className="modal-actions">
           <button className="btn btn-primary" onClick={handleConfirm}>확인</button>
-          {isEdit && (
-            <button className="btn btn-danger" onClick={onDelete}>삭제</button>
-          )}
+          {isEdit && <button className="btn btn-danger" onClick={onDelete}>삭제</button>}
         </div>
       </div>
+
+      {/* 드럼 시간 선택 팝업 */}
+      {showPicker && (
+        <TimePicker
+          value={reminderTime}
+          anchorEl={timeBtnRef.current}
+          onConfirm={(t) => { setReminderTime(t); setShowPicker(false); }}
+          onCancel={() => setShowPicker(false)}
+        />
+      )}
     </div>
   );
 }

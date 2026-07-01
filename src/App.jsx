@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import Clock from './components/Clock.jsx';
 import CalendarPanel from './components/CalendarPanel.jsx';
 import TodoPanel from './components/TodoPanel.jsx';
@@ -8,6 +8,7 @@ import { useTodos } from './hooks/useTodos.js';
 import { useSchedules } from './hooks/useSchedules.js';
 import { toDayKey, uuid } from './lib/date.js';
 import { textColor } from './lib/color.js';
+import { scheduleNotification, getPermissionState, requestPermission } from './lib/notification.js';
 
 const mode = new URLSearchParams(location.search).get('mode') || '';
 
@@ -29,6 +30,21 @@ export default function App() {
   const [theme, setTheme] = useTheme();
   const [selectedDay, setSelectedDay] = useState(() => toDayKey(new Date()));
   const [navigateTo, setNavigateTo] = useState(null);
+  const [notifPerm, setNotifPerm] = useState(() => getPermissionState());
+
+  const handleNotifClick = useCallback(async () => {
+    const state = getPermissionState();
+    if (state === 'unsupported') {
+      alert('이 브라우저는 알림을 지원하지 않습니다.');
+    } else if (state === 'denied') {
+      alert('알림이 차단되어 있습니다.\n브라우저 주소창 왼쪽 🔒 아이콘 → 알림 → 허용으로 변경 후 새로고침해주세요.');
+    } else if (state === 'granted') {
+      alert('알림이 허용되어 있습니다. ✅');
+    } else {
+      const granted = await requestPermission();
+      setNotifPerm(granted ? 'granted' : 'denied');
+    }
+  }, []);
 
   const todos = useTodos(privateKey);
   const { schedules, saveAll } = useSchedules(privateKey);
@@ -37,35 +53,26 @@ export default function App() {
     window.AndroidApp?.savePrivateKey?.(privateKey);
   }, [privateKey]);
 
-  // 브라우저 알림 권한 요청 및 스케줄링
+  // 할 일 알림 스케줄링 (권한이 있을 때만 동작)
   useEffect(() => {
-    if ('Notification' in window && Notification.permission === 'default') {
-      Notification.requestPermission();
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!todos.allTodos?.length) return;
+    if (!todos.allTodos?.length || getPermissionState() !== 'granted') return;
     const today = toDayKey(new Date());
-    const now = new Date();
+    const now = Date.now();
     const timers = [];
 
     todos.allTodos.forEach((todo) => {
       if (!todo.reminder || todo.del || todo.day !== today) return;
       const [h, m] = todo.reminder.split(':');
-      const reminderDate = new Date();
-      reminderDate.setHours(Number(h), Number(m), 0, 0);
-      const ms = reminderDate - now;
-      if (ms > 0) {
+      const fireDate = new Date();
+      fireDate.setHours(Number(h), Number(m), 0, 0);
+      const delay = fireDate.getTime() - now;
+      if (delay > 0) {
         timers.push(
-          setTimeout(() => {
-            if (Notification.permission === 'granted') {
-              new Notification('📌 할 일 알림', {
-                body: todo.text.replace(/#[^\s#]+/g, '').trim(),
-                icon: '/favicon.ico',
-              });
-            }
-          }, ms)
+          scheduleNotification(
+            '📌 할 일 알림',
+            todo.text.replace(/#[^\s#]+/g, '').trim(),
+            delay
+          )
         );
       }
     });
@@ -73,33 +80,29 @@ export default function App() {
     return () => timers.forEach(clearTimeout);
   }, [todos.allTodos]);
 
-  // 캘린더 일정 알림 스케줄링
+  // 캘린더 일정 알림 스케줄링 — reminder는 "HH:MM" 절대시각 (7일 이내만)
   useEffect(() => {
-    if (!schedules.length) return;
-    const timers = [];
+    if (!schedules.length || getPermissionState() !== 'granted') return;
     const now = Date.now();
+    const timers = [];
 
     schedules.forEach((event) => {
-      if (!event.reminder) return;
-      const startMs = new Date(event.start).getTime();
-      if (isNaN(startMs)) return;
-      const fireAt = startMs - event.reminder * 60 * 1000;
-      const delay = fireAt - now;
-      // 미래 7일 이내의 알림만 스케줄링
+      if (!event.reminder || typeof event.reminder !== 'string') return;
+      const eventStart = new Date(event.start);
+      if (isNaN(eventStart.getTime())) return;
+      const [h, m] = event.reminder.split(':');
+      // 이벤트 시작일 당일 HH:MM 에 알림
+      const fireDate = new Date(
+        eventStart.getFullYear(),
+        eventStart.getMonth(),
+        eventStart.getDate(),
+        Number(h),
+        Number(m),
+        0, 0
+      );
+      const delay = fireDate.getTime() - now;
       if (delay > 0 && delay < 7 * 24 * 60 * 60 * 1000) {
-        timers.push(
-          setTimeout(() => {
-            if (Notification.permission === 'granted') {
-              const mins = event.reminder;
-              const label =
-                mins >= 1440 ? '1일' : mins >= 60 ? `${mins / 60}시간` : `${mins}분`;
-              new Notification(`📅 ${label} 후 일정`, {
-                body: event.title,
-                icon: '/favicon.ico',
-              });
-            }
-          }, delay)
-        );
+        timers.push(scheduleNotification(`📅 일정 알림`, event.title, delay));
       }
     });
 
@@ -216,6 +219,19 @@ export default function App() {
         {!isViewMode && (
           <button className="key-btn" onClick={changeKey} title="Private Key 변경">
             🔑
+          </button>
+        )}
+        {!isViewMode && (
+          <button
+            className={`notif-btn notif-${notifPerm}`}
+            onClick={handleNotifClick}
+            title={
+              notifPerm === 'granted' ? '알림 허용됨' :
+              notifPerm === 'denied'  ? '알림 차단됨 — 클릭하여 안내 보기' :
+              '알림 권한 요청'
+            }
+          >
+            {notifPerm === 'granted' ? '🔔' : '🔕'}
           </button>
         )}
         <button

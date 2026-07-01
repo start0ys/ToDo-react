@@ -423,7 +423,7 @@
 }
 .todo-item-date-edit:focus { border-color: var(--primary); }
 
-/* ===== 알림 영역 ===== */
+/* ===== 알림 영역 (인라인) ===== */
 .reminder-wrap {
   flex-shrink: 0;
   display: flex;
@@ -460,11 +460,9 @@
   cursor: pointer;
   white-space: nowrap;
   line-height: 1.4;
+  transition: background 0.15s, color 0.15s;
 }
-.reminder-badge-time:hover {
-  background: var(--primary);
-  color: #fff;
-}
+.reminder-badge-time:hover { background: var(--primary); color: #fff; }
 .reminder-badge-clear {
   border: none;
   background: transparent;
@@ -478,38 +476,6 @@
 }
 .reminder-badge-clear:hover { color: var(--danger); }
 
-/* 시간 입력 팝업 */
-.reminder-popup {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-}
-.reminder-time-input {
-  width: 80px;
-  border: 1px solid var(--primary);
-  border-radius: 6px;
-  padding: 3px 5px;
-  background: var(--surface);
-  color: var(--text);
-  font-size: 12px;
-  font-family: var(--font);
-  outline: none;
-}
-.reminder-clear-btn {
-  border: none;
-  background: transparent;
-  color: var(--text-muted);
-  font-size: 12px;
-  padding: 2px 4px;
-  cursor: pointer;
-  border-radius: 4px;
-  line-height: 1;
-  transition: color 0.15s, background 0.15s;
-}
-.reminder-clear-btn:hover {
-  color: var(--danger);
-  background: rgba(229, 69, 39, 0.1);
-}
 
 /* ===== 복원 / 삭제 버튼 ===== */
 .todo-item-restore {

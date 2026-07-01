@@ -1,0 +1,133 @@
+/* ===== TimePicker 팝업 컨테이너 ===== */
+.time-picker-popup {
+  position: fixed;
+  z-index: 500;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 14px 10px 12px;
+  width: 236px;
+  user-select: none;
+}
+
+.time-picker-title {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+/* ===== 드럼 영역 ===== */
+.time-picker-drums {
+  display: flex;
+  align-items: stretch;
+  height: 220px; /* VISIBLE(5) × ITEM_H(44) */
+}
+
+.drum-sep {
+  width: 1px;
+  background: var(--border);
+  margin: 12px 0;
+  flex-shrink: 0;
+}
+
+/* ===== 개별 드럼 컬럼 ===== */
+.drum-col {
+  flex: 1;
+  position: relative;
+  outline: none;
+  cursor: pointer;
+}
+
+/* 스크롤 영역 */
+.drum-scroll {
+  height: 220px;
+  overflow-y: scroll;
+  scroll-snap-type: y mandatory;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  position: relative;
+  z-index: 1;
+}
+.drum-scroll::-webkit-scrollbar { display: none; }
+
+/* 아이템 */
+.drum-item {
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  color: var(--text-muted);
+  scroll-snap-align: center;
+  transition: color 0.12s, font-size 0.12s, font-weight 0.12s;
+}
+.drum-item.drum-sel {
+  color: var(--text);
+  font-size: 22px;
+  font-weight: 700;
+}
+
+/* 선택된 항목 배경 하이라이트 */
+.drum-highlight {
+  position: absolute;
+  /* top = PAD(2) × ITEM_H(44) = 88px */
+  top: 88px;
+  left: 4px;
+  right: 4px;
+  height: 44px;
+  background: var(--primary-weak);
+  border-radius: 8px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* 상하 페이드 마스크 */
+.drum-fade {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 72px;
+  pointer-events: none;
+  z-index: 2;
+}
+.drum-fade-top {
+  top: 0;
+  background: linear-gradient(to bottom, var(--surface) 20%, transparent);
+}
+.drum-fade-bot {
+  bottom: 0;
+  background: linear-gradient(to top, var(--surface) 20%, transparent);
+}
+
+/* ===== 버튼 영역 ===== */
+.time-picker-btns {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.tp-btn {
+  flex: 1;
+  height: 40px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 600;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+.tp-confirm {
+  background: var(--primary);
+  color: #fff;
+}
+.tp-confirm:hover { opacity: 0.85; }
+.tp-cancel {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+.tp-cancel:hover { background: var(--border); }

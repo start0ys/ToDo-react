@@ -1,46 +1,39 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { requestPermission, getPermissionState } from '../lib/notification.js';
+import TimePicker from './TimePicker.jsx';
 
 function parseTags(text) {
   return (text.match(/#[^\s#]+/g) || []).map((t) => t.slice(1));
 }
-
 function stripTags(text) {
   return text.replace(/#[^\s#]+/g, '').trim();
 }
+function nextFiveMin() {
+  const d = new Date();
+  d.setSeconds(0, 0);
+  const rem = d.getMinutes() % 5;
+  d.setMinutes(d.getMinutes() + (rem === 0 ? 5 : 5 - rem));
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
 
 export default function TodoItem({
-  item,
-  type,
-  onAction,
-  onRestore,
-  onEdit,
-  onPriority,
-  onMove,
-  onReminder,
+  item, type,
+  onAction, onRestore, onEdit, onPriority, onMove, onReminder,
 }) {
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(item.text);
+  const [draft,   setDraft]   = useState(item.text);
   const [editDay, setEditDay] = useState(item.day || '');
-  const [fading, setFading] = useState(false);
-  const [showReminderInput, setShowReminderInput] = useState(false);
+  const [fading,  setFading]  = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: item.id,
-  });
+  const bellRef = useRef(null); // 벨 버튼 위치 기준
 
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-  };
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
 
-  const startEdit = () => {
-    setDraft(item.text);
-    setEditDay(item.day || '');
-    setEditing(true);
-  };
+  const startEdit = () => { setDraft(item.text); setEditDay(item.day || ''); setEditing(true); };
 
   const commit = () => {
     setEditing(false);
@@ -56,150 +49,115 @@ export default function TodoItem({
     setTimeout(() => onAction(item.id), 300);
   };
 
+  const openPicker = async () => {
+    if (getPermissionState() === 'denied') {
+      alert('알림이 차단되어 있습니다.\n브라우저 주소창 🔒 → 알림 → 허용 후 새로고침해주세요.');
+      return;
+    }
+    const granted = await requestPermission();
+    if (!granted) return;
+    setShowPicker(true);
+  };
+
   const clearReminder = (e) => {
-    // onMouseDown으로 호출 시 blur보다 먼저 실행되도록 preventDefault
     e?.preventDefault();
     if (onReminder) onReminder(item.id, null);
-    setShowReminderInput(false);
+    setShowPicker(false);
   };
 
-  const saveReminder = (value) => {
-    if (onReminder) onReminder(item.id, value || null);
-    setShowReminderInput(false);
-  };
-
-  const tags = parseTags(item.text);
+  const tags        = parseTags(item.text);
   const visibleText = stripTags(item.text) || item.text;
-  const priority = item.priority || 0;
+  const priority    = item.priority || 0;
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={`todo-item${fading ? ' fading-out' : ''}${priority === 2 ? ' priority-urgent' : ''}`}
-    >
-      {/* 우선순위 점 */}
-      {type === 'todo' && onPriority && (
-        <button
-          className={`priority-dot p${priority}`}
-          title={['기본', '중요', '긴급'][priority]}
-          onClick={(e) => { e.stopPropagation(); onPriority(item.id, (priority + 1) % 3); }}
-        />
-      )}
-
-      {/* 드래그 핸들 */}
-      <span className="drag-handle" {...attributes} {...listeners}>⠿</span>
-
-      {/* 체크박스 (todo) */}
-      {type === 'todo' && (
-        <button
-          className={`todo-check-btn${fading ? ' checked' : ''}`}
-          title="완료"
-          onClick={handleComplete}
-        />
-      )}
-
-      {/* 텍스트 / 편집 */}
-      {editing ? (
-        <div className="todo-edit-wrap">
-          <input
-            className="todo-item-edit"
-            autoFocus
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commit}
-            onKeyUp={(e) => {
-              if (e.key === 'Enter') commit();
-              if (e.key === 'Escape') { setDraft(item.text); setEditing(false); }
-            }}
+    <>
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`todo-item${fading ? ' fading-out' : ''}${priority === 2 ? ' priority-urgent' : ''}`}
+      >
+        {/* 우선순위 점 */}
+        {type === 'todo' && onPriority && (
+          <button
+            className={`priority-dot p${priority}`}
+            title={['기본', '중요', '긴급'][priority]}
+            onClick={(e) => { e.stopPropagation(); onPriority(item.id, (priority + 1) % 3); }}
           />
-          {type === 'todo' && onMove && (
+        )}
+
+        {/* 드래그 핸들 */}
+        <span className="drag-handle" {...attributes} {...listeners}>⠿</span>
+
+        {/* 체크박스 */}
+        {type === 'todo' && (
+          <button className={`todo-check-btn${fading ? ' checked' : ''}`} title="완료" onClick={handleComplete} />
+        )}
+
+        {/* 텍스트 / 편집 */}
+        {editing ? (
+          <div className="todo-edit-wrap">
             <input
-              type="date"
-              className="todo-item-date-edit"
-              value={editDay}
-              onChange={(e) => setEditDay(e.target.value)}
+              className="todo-item-edit"
+              autoFocus
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commit}
+              onKeyUp={(e) => {
+                if (e.key === 'Enter') commit();
+                if (e.key === 'Escape') { setDraft(item.text); setEditing(false); }
+              }}
             />
-          )}
-        </div>
-      ) : (
-        <div className="todo-text-wrap" onDoubleClick={startEdit}>
-          <span className={`todo-item-text${type === 'finish' ? ' done' : ''}`}>
-            {visibleText}
-          </span>
-          {tags.length > 0 && (
-            <div className="item-tags">
-              {tags.map((tag) => (
-                <span key={tag} className="item-tag">#{tag}</span>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+            {type === 'todo' && onMove && (
+              <input type="date" className="todo-item-date-edit" value={editDay} onChange={(e) => setEditDay(e.target.value)} />
+            )}
+          </div>
+        ) : (
+          <div className="todo-text-wrap" onDoubleClick={startEdit}>
+            <span className={`todo-item-text${type === 'finish' ? ' done' : ''}`}>{visibleText}</span>
+            {tags.length > 0 && (
+              <div className="item-tags">
+                {tags.map((tag) => <span key={tag} className="item-tag">#{tag}</span>)}
+              </div>
+            )}
+          </div>
+        )}
 
-      {/* 알림 영역 (todo) */}
-      {type === 'todo' && (
-        <div className="reminder-wrap">
-          {showReminderInput ? (
-            /* 시간 입력 모드 */
-            <div className="reminder-popup">
-              <input
-                type="time"
-                className="reminder-time-input"
-                autoFocus
-                defaultValue={item.reminder || '09:00'}
-                onBlur={(e) => saveReminder(e.target.value)}
-                onKeyUp={(e) => {
-                  if (e.key === 'Enter') e.target.blur();
-                  if (e.key === 'Escape') setShowReminderInput(false);
-                }}
-              />
-              <button
-                className="reminder-clear-btn"
-                onMouseDown={clearReminder}
-                title="알림 삭제"
-              >✕</button>
-            </div>
-          ) : item.reminder ? (
-            /* 알림 설정됨: 배지 + 삭제 버튼 */
-            <div className="reminder-badge">
-              <button
-                className="reminder-badge-time"
-                onClick={() => setShowReminderInput(true)}
-                title="알림 시간 변경"
-              >
-                🔔 {item.reminder}
-              </button>
-              <button
-                className="reminder-badge-clear"
-                onClick={clearReminder}
-                title="알림 삭제"
-              >✕</button>
-            </div>
-          ) : (
-            /* 알림 없음: hover 시에만 표시 */
-            <button
-              className="reminder-btn"
-              title="알림 설정"
-              onClick={() => setShowReminderInput(true)}
-            >🔕</button>
-          )}
-        </div>
-      )}
+        {/* 알림 (todo) */}
+        {type === 'todo' && (
+          <div className="reminder-wrap">
+            {item.reminder ? (
+              <div className="reminder-badge">
+                <button ref={bellRef} className="reminder-badge-time" onClick={openPicker} title="알림 시간 변경">
+                  🔔 {item.reminder}
+                </button>
+                <button className="reminder-badge-clear" onMouseDown={clearReminder} title="알림 삭제">✕</button>
+              </div>
+            ) : (
+              <button ref={bellRef} className="reminder-btn" title="알림 설정" onClick={openPicker}>🔕</button>
+            )}
+          </div>
+        )}
 
-      {/* 복원 (finish) */}
-      {type === 'finish' && onRestore && (
-        <button className="todo-item-restore" title="할 일로 복원" onClick={() => onRestore(item.id)}>
-          ↺
-        </button>
-      )}
+        {/* 복원 (finish) */}
+        {type === 'finish' && onRestore && (
+          <button className="todo-item-restore" title="할 일로 복원" onClick={() => onRestore(item.id)}>↺</button>
+        )}
 
-      {/* 삭제 (finish) */}
-      {type === 'finish' && (
-        <button className="todo-item-action" title="삭제" onClick={() => onAction(item.id)}>
-          ✕
-        </button>
+        {/* 삭제 (finish) */}
+        {type === 'finish' && (
+          <button className="todo-item-action" title="삭제" onClick={() => onAction(item.id)}>✕</button>
+        )}
+      </div>
+
+      {/* 드럼 시간 선택 팝업 */}
+      {showPicker && (
+        <TimePicker
+          value={item.reminder || nextFiveMin()}
+          anchorEl={bellRef.current}
+          onConfirm={(t) => { if (onReminder) onReminder(item.id, t); setShowPicker(false); }}
+          onCancel={() => setShowPicker(false)}
+        />
       )}
-    </div>
+    </>
   );
 }

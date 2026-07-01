@@ -89,21 +89,47 @@
   font-weight: 500;
 }
 
-.modal-select {
-  flex: 1;
-  height: 38px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  background: var(--surface-2);
-  color: var(--text);
-  font-family: var(--font);
-  font-size: 14px;
-  outline: none;
+/* 알림 행 */
+.modal-reminder-row {
+  align-items: center;
+  gap: 10px;
+}
+.reminder-toggle-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.reminder-toggle-check {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
   cursor: pointer;
 }
-.modal-select:focus {
-  border-color: var(--primary);
+.reminder-toggle-text {
+  font-size: 13px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+/* 알림 시간 표시 버튼 */
+.modal-time-btn {
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--primary);
+  border-radius: var(--radius-sm);
+  background: var(--primary-weak);
+  color: var(--primary);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.modal-time-btn:hover {
+  background: var(--primary);
+  color: #fff;
 }
 
 .modal-actions {
