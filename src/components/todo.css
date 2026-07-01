@@ -4,36 +4,223 @@
   gap: 14px;
 }
 
+/* ===== 헤더 ===== */
 .todo-head {
   text-align: center;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 날짜 행 (날짜 가운데 + 주간 버튼 오른쪽) */
+.todo-date-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.todo-date-spacer {
+  width: 56px; /* weekly-toggle-btn 너비만큼 맞춤 */
 }
 .todo-date {
   font-size: 22px;
   font-weight: 700;
-  margin-bottom: 12px;
+  flex: 1;
+  text-align: center;
+}
+.weekly-toggle-btn {
+  font-size: 12px;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.weekly-toggle-btn:hover,
+.weekly-toggle-btn.active {
+  background: var(--primary-weak);
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
-.todo-input {
+/* ===== 진행 바 ===== */
+.todo-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.todo-progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.todo-progress-fill {
+  height: 100%;
+  background: var(--success);
+  border-radius: 99px;
+  transition: width 0.35s ease;
+}
+.todo-progress-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ===== 태그 필터 ===== */
+.tag-filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.tag-chip {
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.tag-chip:hover, .tag-chip.active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+/* ===== 주간 요약 뷰 ===== */
+.weekly-view {
+  display: flex;
+  gap: 6px;
+  height: 110px;
+  align-items: flex-end;
+  padding: 4px 4px 0;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+.weekly-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+}
+.weekly-pct-label {
+  font-size: 10px;
+  color: var(--text-muted);
+  height: 14px;
+}
+.weekly-bar-track {
+  flex: 1;
   width: 100%;
-  height: 44px;
-  padding: 0 16px;
+  background: var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+}
+.weekly-bar-fill {
+  width: 100%;
+  background: var(--success);
+  border-radius: 4px;
+  transition: height 0.35s ease;
+  min-height: 0;
+}
+.weekly-col.today .weekly-bar-fill { background: var(--primary); }
+.weekly-col.selected .weekly-bar-track { outline: 2px solid var(--primary); border-radius: 4px; }
+.weekly-day-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.weekly-date-label {
+  font-size: 10px;
+  color: var(--text-muted);
+}
+.weekly-col.today .weekly-day-label,
+.weekly-col.today .weekly-date-label { color: var(--primary); font-weight: 700; }
+
+/* ===== 입력창 + 반복 선택 (같은 줄) ===== */
+.todo-input-row {
+  display: flex;
+  align-items: stretch;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-2);
-  color: var(--text);
-  font-size: 14px;
-  text-align: center;
-  outline: none;
+  overflow: hidden;
   transition: border-color 0.15s;
+  height: 44px;
 }
-.todo-input:focus {
+.todo-input-row:focus-within {
   border-color: var(--primary);
 }
+.todo-input-row.has-repeat {
+  border-color: var(--primary);
+  background: var(--primary-weak);
+}
+.todo-input {
+  flex: 1;
+  height: 100%;
+  padding: 0 14px;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  min-width: 0;
+}
+.todo-input::placeholder {
+  color: var(--text-muted);
+}
 
+/* 반복 세부 선택 (요일 / 일) */
+.todo-repeat-sub {
+  height: 100%;
+  border: none;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 0 8px;
+  font-family: var(--font);
+  cursor: pointer;
+  outline: none;
+}
+
+/* 반복 종류 선택 */
+.todo-repeat-select {
+  height: 100%;
+  border: none;
+  border-left: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 0 10px;
+  font-family: var(--font);
+  cursor: pointer;
+  outline: none;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.todo-repeat-select:focus,
+.todo-input-row.has-repeat .todo-repeat-select {
+  color: var(--primary);
+}
+
+/* ===== Todo / Finish 컬럼 그리드 ===== */
 .todo-lists {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 14px;
+  flex: 1;
+  min-height: 0;
 }
 @media (max-width: 480px) {
   .todo-lists {
@@ -46,7 +233,10 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: 12px;
-  min-height: 260px;
+  display: flex;
+  flex-direction: column;
+  min-height: 200px;
+  overflow: hidden;
 }
 .todo-col-title {
   display: flex;
@@ -56,55 +246,294 @@
   font-weight: 700;
   font-size: 15px;
   margin-bottom: 10px;
+  flex-shrink: 0;
 }
-.todo-col-icon {
-  font-size: 14px;
-}
+.todo-col-icon { font-size: 14px; }
 
+/* ===== TODO 아이템 목록 (내부 스크롤) ===== */
 .todo-items {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+  padding-right: 2px;
 }
+.todo-items::-webkit-scrollbar { width: 4px; }
+.todo-items::-webkit-scrollbar-track { background: transparent; }
+.todo-items::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 4px;
+}
+
 .todo-empty {
   text-align: center;
   color: var(--text-muted);
   font-size: 13px;
-  padding: 16px 0;
+  padding: 20px 8px;
+  line-height: 1.6;
 }
 
+/* ===== TODO 아이템 ===== */
 .todo-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
-  padding: 8px 10px;
+  padding: 7px 8px;
+  transition: opacity 0.3s, transform 0.3s;
 }
-.todo-item-text {
-  flex: 1;
+.todo-item.fading-out {
+  opacity: 0;
+  transform: translateX(16px);
+  pointer-events: none;
+}
+.todo-item.priority-urgent {
+  border-left: 3px solid var(--danger);
+}
+
+/* 드래그 핸들 */
+.drag-handle {
+  color: var(--text-muted);
+  opacity: 0;
   cursor: grab;
-  word-break: break-all;
+  font-size: 13px;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: opacity 0.15s;
   user-select: none;
 }
-.todo-item-text:active {
-  cursor: grabbing;
+.todo-item:hover .drag-handle { opacity: 0.35; }
+.drag-handle:active { cursor: grabbing; opacity: 1; }
+
+/* ===== 우선순위 점 ===== */
+.priority-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: none;
+  flex-shrink: 0;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s;
+}
+.priority-dot:hover { transform: scale(1.4); }
+.priority-dot.p0 { background: var(--border); }
+.priority-dot.p1 { background: #f59e0b; }
+.priority-dot.p2 { background: var(--danger); }
+
+/* ===== 체크박스 버튼 ===== */
+.todo-check-btn {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.15s, background 0.15s;
+}
+.todo-check-btn::after {
+  content: '';
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: 9px;
+  height: 5px;
+  border-left: 2px solid transparent;
+  border-bottom: 2px solid transparent;
+  transform: translate(-50%, -50%) rotate(-45deg);
+  transition: border-color 0.15s;
+}
+.todo-check-btn:hover { border-color: var(--success); }
+.todo-check-btn:hover::after { border-color: var(--success); }
+.todo-check-btn.checked {
+  border-color: var(--success);
+  background: var(--success);
+}
+.todo-check-btn.checked::after { border-color: #fff; }
+
+/* ===== 텍스트 영역 ===== */
+.todo-text-wrap {
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+  user-select: none;
+}
+.todo-item-text {
+  display: block;
+  word-break: break-all;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.todo-item-text.done {
+  text-decoration: line-through;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+/* ===== 태그 ===== */
+.item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin-top: 3px;
+}
+.item-tag {
+  font-size: 10px;
+  color: var(--primary);
+  background: var(--primary-weak);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+/* ===== 편집 모드 ===== */
+.todo-edit-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 .todo-item-edit {
-  flex: 1;
+  width: 100%;
   border: 1px solid var(--primary);
   border-radius: 6px;
   padding: 4px 6px;
   background: var(--surface);
   color: var(--text);
+  font-size: 13px;
+  font-family: var(--font);
   outline: none;
 }
+.todo-item-date-edit {
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 3px 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font);
+  outline: none;
+}
+.todo-item-date-edit:focus { border-color: var(--primary); }
+
+/* ===== 알림 영역 ===== */
+.reminder-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* 알림 없음: hover 시에만 표시 */
+.reminder-btn {
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  line-height: 1;
+  padding: 2px 3px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  cursor: pointer;
+}
+.todo-item:hover .reminder-btn { opacity: 0.35; }
+.reminder-btn:hover { opacity: 1 !important; }
+
+/* 알림 설정됨: 배지 항상 표시 */
+.reminder-badge {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.reminder-badge-time {
+  border: none;
+  background: var(--primary-weak);
+  color: var(--primary);
+  border-radius: 5px;
+  font-size: 11px;
+  padding: 2px 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+.reminder-badge-time:hover {
+  background: var(--primary);
+  color: #fff;
+}
+.reminder-badge-clear {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 11px;
+  padding: 2px 3px;
+  cursor: pointer;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.reminder-badge-clear:hover { color: var(--danger); }
+
+/* 시간 입력 팝업 */
+.reminder-popup {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.reminder-time-input {
+  width: 80px;
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  padding: 3px 5px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  font-family: var(--font);
+  outline: none;
+}
+.reminder-clear-btn {
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  padding: 2px 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.15s, background 0.15s;
+}
+.reminder-clear-btn:hover {
+  color: var(--danger);
+  background: rgba(229, 69, 39, 0.1);
+}
+
+/* ===== 복원 / 삭제 버튼 ===== */
+.todo-item-restore {
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1;
+  padding: 2px 3px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+.todo-item-restore:hover { color: var(--success); }
+
 .todo-item-action {
   border: none;
   background: transparent;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   line-height: 1;
-  padding: 2px 4px;
+  padding: 2px 3px;
+  flex-shrink: 0;
+  color: var(--danger);
+  transition: opacity 0.15s;
+  opacity: 0;
 }
+.todo-item:hover .todo-item-action { opacity: 1; }

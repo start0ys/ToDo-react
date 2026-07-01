@@ -1,5 +1,14 @@
 .calendar-card {
   padding: 14px 16px 18px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* FullCalendar 세로 늘리기 */
+.calendar-card .fc {
+  flex: 1;
+  min-height: 0;
 }
 
 /* FullCalendar 테마를 디자인 토큰에 맞춤 */
@@ -9,6 +18,18 @@
   --fc-neutral-bg-color: var(--surface-2);
   --fc-page-bg-color: var(--surface);
   font-family: var(--font);
+}
+
+/* ===== 헤더 툴바 3등분 가운데 정렬 ===== */
+.calendar-card .fc-header-toolbar .fc-toolbar-chunk {
+  flex: 1;
+}
+.calendar-card .fc-header-toolbar .fc-toolbar-chunk:nth-child(2) {
+  text-align: center;
+}
+.calendar-card .fc-header-toolbar .fc-toolbar-chunk:last-child {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .fc .fc-toolbar-title {
@@ -59,7 +80,7 @@
   font-size: 11px;
 }
 
-/* TODO 유무 점 표시 (미완료 빨강 / 전부완료 초록) */
+/* TODO 유무 점 표시 */
 .fc .has-todo .fc-daygrid-day-number::after,
 .fc .has-finish .fc-daygrid-day-number::after {
   content: '';
@@ -84,7 +105,77 @@
   font-size: 12px;
 }
 
-/* 뷰 전용 모드: 테두리 최소화 */
+/* ===== 선택된 날짜 강조 ===== */
+.fc .fc-day-selected .fc-daygrid-day-number {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-radius: 50%;
+  min-width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 !important;
+  margin: 2px 0;
+}
+
+/* ===== 날짜 피커 팝업 ===== */
+.cal-picker-popup {
+  position: absolute;
+  top: 52px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 10px 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 50;
+  white-space: nowrap;
+}
+.cal-picker-popup select {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  padding: 5px 8px;
+  font-size: 14px;
+  font-family: var(--font);
+  cursor: pointer;
+}
+.cal-picker-go {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  font-size: 13px;
+  font-family: var(--font);
+}
+.cal-picker-close {
+  background: var(--surface-2);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 5px 8px;
+  font-size: 12px;
+  font-family: var(--font);
+}
+
+/* ===== 제목 클릭 인터랙션 ===== */
+.calendar-card:not(.view-mode) .fc .fc-toolbar-title {
+  cursor: pointer;
+  transition: color 0.15s;
+  user-select: none;
+}
+.calendar-card:not(.view-mode) .fc .fc-toolbar-title:hover {
+  color: var(--primary);
+}
+
+/* ===== 뷰 전용 모드: 테두리 최소화 ===== */
 .view-mode .fc-theme-standard td,
 .view-mode .fc-theme-standard th {
   border-color: transparent;

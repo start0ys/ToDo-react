@@ -30,3 +30,16 @@ export function uuid() {
   const s4 = () => (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
   return `${s4()}${s4()}-${s4()}-${s4()}-${s4()}-${s4()}${s4()}${s4()}`;
 }
+
+export function addDays(date, n) {
+  const d = new Date(date instanceof Date ? date : date + 'T00:00');
+  d.setDate(d.getDate() + n);
+  return d;
+}
+
+export function getWeekDays(dateOrKey) {
+  const d = dateOrKey instanceof Date ? new Date(dateOrKey) : new Date(dateOrKey + 'T00:00');
+  const offset = (d.getDay() + 6) % 7; // Monday-based offset
+  const monday = addDays(d, -offset);
+  return Array.from({ length: 7 }, (_, i) => toDayKey(addDays(monday, i)));
+}

@@ -12,7 +12,21 @@ import {
 } from '@dnd-kit/sortable';
 import TodoItem from './TodoItem.jsx';
 
-export default function TodoList({ title, icon, accent, type, items, onAction, onEdit, onReorder }) {
+export default function TodoList({
+  title,
+  icon,
+  accent,
+  type,
+  items,
+  onAction,
+  onRestore,
+  onEdit,
+  onReorder,
+  onPriority,
+  onMove,
+  onReminder,
+  emptyMessage,
+}) {
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
   const handleDragEnd = (event) => {
@@ -32,7 +46,9 @@ export default function TodoList({ title, icon, accent, type, items, onAction, o
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={items.map((i) => i.id)} strategy={verticalListSortingStrategy}>
           <div className="todo-items">
-            {items.length === 0 && <div className="todo-empty">비어 있음</div>}
+            {items.length === 0 && (
+              <div className="todo-empty">{emptyMessage || '비어 있음'}</div>
+            )}
             {items.map((item) => (
               <TodoItem
                 key={item.id}
@@ -41,7 +57,11 @@ export default function TodoList({ title, icon, accent, type, items, onAction, o
                 icon={icon}
                 accent={accent}
                 onAction={onAction}
+                onRestore={onRestore}
                 onEdit={onEdit}
+                onPriority={onPriority}
+                onMove={onMove}
+                onReminder={onReminder}
               />
             ))}
           </div>

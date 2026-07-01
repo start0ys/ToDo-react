@@ -89,6 +89,23 @@
   font-weight: 500;
 }
 
+.modal-select {
+  flex: 1;
+  height: 38px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+}
+.modal-select:focus {
+  border-color: var(--primary);
+}
+
 .modal-actions {
   display: flex;
   gap: 10px;

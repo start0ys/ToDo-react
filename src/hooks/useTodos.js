@@ -9,17 +9,11 @@ import {
   deleteDoc,
 } from 'firebase/firestore';
 import { db, todoCollection, isFirebaseAvailable } from '../lib/firebase';
-import { uuid } from '../lib/date';
+import { uuid, toDayKey, addDays } from '../lib/date';
 
-/**
- * 기존 todo 컬렉션 스키마 유지:
- * { id, day, text, del, seq, owner }
- * 사용자의 모든 TODO를 한 번 로드해 메모리에서 파생 계산한다.
- */
 export function useTodos(privateKey) {
   const [allTodos, setAllTodos] = useState([]);
 
-  // 최초 1회 전체 로드
   useEffect(() => {
     if (!isFirebaseAvailable || !privateKey) return;
     let alive = true;
@@ -29,12 +23,9 @@ export function useTodos(privateKey) {
       const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
       setAllTodos(list);
     })();
-    return () => {
-      alive = false;
-    };
+    return () => { alive = false; };
   }, [privateKey]);
 
-  // 날짜별 완료 상태 맵 (달력 점 표시용): day -> 'finish' | 'todo'
   const checkMap = useMemo(() => {
     const byDay = {};
     for (const t of allTodos) {
@@ -48,12 +39,14 @@ export function useTodos(privateKey) {
     return map;
   }, [allTodos]);
 
-  // 특정 날짜의 todo/finish 목록 (seq 정렬)
   const getDayLists = useCallback(
     (day) => {
       const todos = allTodos
         .filter((t) => t.day === day && !t.del)
-        .sort((a, b) => (a.seq || 0) - (b.seq || 0));
+        .sort((a, b) => {
+          const pd = (b.priority || 0) - (a.priority || 0);
+          return pd !== 0 ? pd : (a.seq || 0) - (b.seq || 0);
+        });
       const finishes = allTodos
         .filter((t) => t.day === day && t.del)
         .sort((a, b) => (a.seq || 0) - (b.seq || 0));
@@ -81,6 +74,55 @@ export function useTodos(privateKey) {
     [privateKey, maxSeq]
   );
 
+  /**
+   * repeat: 'daily' | 'weekly' | 'monthly'
+   * repeatParam:
+   *   daily   → null  (오늘부터 30일)
+   *   weekly  → 요일 숫자 0=일 1=월 … 6=토 (12주)
+   *   monthly → 일 숫자 1-31 (12개월)
+   */
+  const addRecurringTodo = useCallback(
+    (day, text, repeat, repeatParam) => {
+      if (!text.trim()) return;
+      const startDate = new Date(day + 'T00:00');
+      const newItems = [];
+
+      const makeItem = (targetDay) => {
+        const id = uuid();
+        return { id, day: targetDay, text, del: false, seq: maxSeq(targetDay, false) + 1, owner: privateKey };
+      };
+
+      if (repeat === 'daily') {
+        for (let i = 0; i < 30; i++) {
+          newItems.push(makeItem(toDayKey(addDays(startDate, i))));
+        }
+      } else if (repeat === 'weekly') {
+        const targetDow = repeatParam ?? 1;
+        const startDow = startDate.getDay();
+        const daysUntil = (targetDow - startDow + 7) % 7;
+        const first = addDays(startDate, daysUntil);
+        for (let i = 0; i < 12; i++) {
+          newItems.push(makeItem(toDayKey(addDays(first, i * 7))));
+        }
+      } else if (repeat === 'monthly') {
+        const targetDate = repeatParam ?? 1;
+        const y = startDate.getFullYear();
+        const m = startDate.getMonth();
+        for (let i = 0; i < 12; i++) {
+          const d = new Date(y, m + i, targetDate);
+          if (d.getDate() !== targetDate) continue; // 해당 월에 없는 날짜 (예: 2월 31일)
+          newItems.push(makeItem(toDayKey(d)));
+        }
+      }
+
+      newItems.forEach((item) => {
+        if (isFirebaseAvailable) setDoc(doc(db, 'todo', item.id), item);
+      });
+      setAllTodos((prev) => [...prev, ...newItems]);
+    },
+    [privateKey, maxSeq]
+  );
+
   const finishTodo = useCallback(
     (id) => {
       setAllTodos((prev) => {
@@ -99,12 +141,24 @@ export function useTodos(privateKey) {
     if (isFirebaseAvailable) deleteDoc(doc(db, 'todo', id));
   }, []);
 
+  const restoreTodo = useCallback(
+    (id) => {
+      setAllTodos((prev) => {
+        const target = prev.find((t) => t.id === id);
+        if (!target) return prev;
+        const seq = maxSeq(target.day, false) + 1;
+        if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { del: false, seq });
+        return prev.map((t) => (t.id === id ? { ...t, del: false, seq } : t));
+      });
+    },
+    [maxSeq]
+  );
+
   const updateText = useCallback((id, text) => {
     setAllTodos((prev) => prev.map((t) => (t.id === id ? { ...t, text } : t)));
     if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { text });
   }, []);
 
-  // 드래그 정렬: 같은 그룹 내 seq 재부여
   const reorder = useCallback((orderedIds) => {
     setAllTodos((prev) => {
       const seqById = new Map(orderedIds.map((id, i) => [id, i + 1]));
@@ -115,5 +169,35 @@ export function useTodos(privateKey) {
     });
   }, []);
 
-  return { checkMap, getDayLists, addTodo, finishTodo, deleteTodo, updateText, reorder };
+  const setPriority = useCallback((id, priority) => {
+    setAllTodos((prev) => prev.map((t) => (t.id === id ? { ...t, priority } : t)));
+    if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { priority });
+  }, []);
+
+  const moveToDay = useCallback((id, newDay) => {
+    setAllTodos((prev) => prev.map((t) => (t.id === id ? { ...t, day: newDay } : t)));
+    if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { day: newDay });
+  }, []);
+
+  const setReminder = useCallback((id, time) => {
+    const value = time || null;
+    setAllTodos((prev) => prev.map((t) => (t.id === id ? { ...t, reminder: value } : t)));
+    if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { reminder: value });
+  }, []);
+
+  return {
+    allTodos,
+    checkMap,
+    getDayLists,
+    addTodo,
+    addRecurringTodo,
+    finishTodo,
+    deleteTodo,
+    restoreTodo,
+    updateText,
+    reorder,
+    setPriority,
+    moveToDay,
+    setReminder,
+  };
 }
