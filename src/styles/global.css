@@ -1,0 +1,97 @@
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  -webkit-text-size-adjust: 100%;
+}
+
+body::-webkit-scrollbar {
+  display: none;
+}
+body {
+  scrollbar-width: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* ===== 레이아웃 ===== */
+.app {
+  margin: 0 auto;
+  padding: 10px 18px 18px 18px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--gap);
+  align-items: start;
+}
+
+/* 뷰 전용 모드(?mode=01): 달력만 */
+.layout.view-mode {
+  grid-template-columns: 1fr;
+}
+
+@media (max-width: 900px) {
+  /* 모바일: 위 달력 / 아래 TODO */
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .app {
+    padding: 12px;
+  }
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow);
+  padding: 16px;
+}
+
+/* ===== 상단 시계 ===== */
+.clock {
+  text-align: center;
+  padding: 6px 0 14px;
+}
+.clock .date {
+  font-size: 15px;
+  color: var(--text-muted);
+}
+.clock .time {
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.topbar {
+  position: absolute;
+  left: 95%;
+}
+.theme-toggle {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: var(--radius);
+  width: 38px;
+  height: 38px;
+  font-size: 17px;
+}

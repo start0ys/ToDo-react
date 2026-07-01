@@ -1,0 +1,39 @@
+:root {
+  /* 색상 */
+  --bg: #f3f5f9;
+  --surface: #ffffff;
+  --surface-2: #f7f9fc;
+  --border: #e3e8f0;
+  --text: #1f2430;
+  --text-muted: #8a93a6;
+  --primary: #4f7cff;
+  --primary-weak: #e7eeff;
+  --danger: #e54527;
+  --success: #14ab0b;
+  --sat: #2f6bff;
+  --sun: #e5484d;
+
+  /* 간격 / 형태 */
+  --radius-sm: 8px;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --gap: 16px;
+  --shadow: 0 6px 24px rgba(26, 38, 66, 0.08);
+  --shadow-sm: 0 2px 8px rgba(26, 38, 66, 0.06);
+
+  /* 타이포 */
+  --font: 'Noto Sans KR', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+[data-theme='dark'] {
+  --bg: #0f1320;
+  --surface: #171c2b;
+  --surface-2: #1e2435;
+  --border: #2a3145;
+  --text: #e8ebf2;
+  --text-muted: #8b93a7;
+  --primary: #6f97ff;
+  --primary-weak: #1f2942;
+  --shadow: 0 6px 24px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+}

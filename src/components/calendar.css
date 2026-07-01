@@ -1,0 +1,91 @@
+.calendar-card {
+  padding: 14px 16px 18px;
+}
+
+/* FullCalendar 테마를 디자인 토큰에 맞춤 */
+.fc {
+  --fc-border-color: var(--border);
+  --fc-today-bg-color: var(--primary-weak);
+  --fc-neutral-bg-color: var(--surface-2);
+  --fc-page-bg-color: var(--surface);
+  font-family: var(--font);
+}
+
+.fc .fc-toolbar-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.fc .fc-button {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 13px;
+  box-shadow: none;
+}
+.fc .fc-button:hover {
+  background: var(--primary-weak);
+}
+.fc .fc-button-primary:not(:disabled).fc-button-active,
+.fc .fc-button-primary:not(:disabled):active {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.fc .fc-col-header-cell-cushion {
+  color: var(--text-muted);
+  font-weight: 500;
+  padding: 8px 0;
+}
+.fc .fc-daygrid-day-number {
+  color: var(--text);
+  padding: 6px 8px;
+}
+
+/* 토요일 파랑 / 일요일·공휴일 빨강 */
+.fc .fc-day-sat .fc-daygrid-day-number {
+  color: var(--sat);
+}
+.fc .fc-day-sun .fc-daygrid-day-number,
+.fc .fc-daygrid-day:has(.holiday) .fc-daygrid-day-number {
+  color: var(--sun);
+}
+.fc .holiday {
+  text-align: end;
+  font-size: 11px;
+}
+
+/* TODO 유무 점 표시 (미완료 빨강 / 전부완료 초록) */
+.fc .has-todo .fc-daygrid-day-number::after,
+.fc .has-finish .fc-daygrid-day-number::after {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+.fc .has-todo .fc-daygrid-day-number::after {
+  background: #ff1965;
+}
+.fc .has-finish .fc-daygrid-day-number::after {
+  background: var(--success);
+}
+
+.fc .fc-event {
+  border-radius: 6px;
+  border: none;
+  padding: 1px 4px;
+  font-size: 12px;
+}
+
+/* 뷰 전용 모드: 테두리 최소화 */
+.view-mode .fc-theme-standard td,
+.view-mode .fc-theme-standard th {
+  border-color: transparent;
+}
