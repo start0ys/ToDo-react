@@ -21,7 +21,8 @@ export function textColor(color) {
 // 색상 프리셋 (기존 모달 색상 유지)
 export const COLOR_PRESETS = [
   { name: '기본', value: '#3788d8' },
-  { name: '연차', value: '#e65656' },
+  { name: '지원', value: '#e65656' },
+  { name: '연차', value: '#bc37cd' },
   { name: '여행', value: '#0edd1c' },
   { name: '생일', value: '#00c7c7' },
 ];

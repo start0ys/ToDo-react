@@ -156,7 +156,7 @@ export default function CalendarPanel({
         editable={!viewMode}
         selectable={!viewMode}
         nowIndicator
-        dayMaxEvents
+        dayMaxEvents={3}
         longPressDelay={100}
         eventSources={eventSources}
         dayCellContent={(arg) => {
