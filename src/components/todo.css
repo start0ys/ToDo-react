@@ -214,26 +214,6 @@
   color: var(--primary);
 }
 
-/* 제출 버튼 (모바일 가상 키보드 대체) */
-.todo-submit-btn {
-  height: 100%;
-  border: none;
-  border-left: 1px solid var(--border);
-  background: transparent;
-  color: var(--primary);
-  font-size: 18px;
-  font-weight: 700;
-  padding: 0 14px;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: background 0.15s;
-  line-height: 1;
-}
-.todo-submit-btn:hover,
-.todo-submit-btn:active {
-  background: var(--primary-weak);
-}
-
 /* ===== Todo / Finish 컬럼 그리드 ===== */
 .todo-lists {
   display: grid;

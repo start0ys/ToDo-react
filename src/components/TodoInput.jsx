@@ -78,15 +78,6 @@ export default function TodoInput({ onAdd, onAddRecurring, selectedDay }) {
         <option value="monthly">매월</option>
       </select>
 
-      {/* 제출 버튼 (모바일 가상 키보드용) */}
-      <button
-        className="todo-submit-btn"
-        onClick={submit}
-        tabIndex={-1}
-        title="추가"
-      >
-        ＋
-      </button>
     </div>
   );
 }
