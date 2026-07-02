@@ -124,6 +124,9 @@ export default function App() {
     const today = toDayKey(new Date());
     setSelectedDay(today);
     setNavigateTo(today);
+    if (window.innerWidth <= 900) {
+      document.getElementById('todo-panel')?.scrollIntoView({ behavior: 'smooth' });
+    }
   };
 
   const openAddModal = () => {
@@ -242,6 +245,7 @@ export default function App() {
           onSelectDate={handleSelectDate}
           onEventClick={handleEventClick}
           onAdd={openAddModal}
+          onGoToday={handleGoToday}
           onEventDrop={handleEventDrop}
           getDayLists={todos.getDayLists}
         />

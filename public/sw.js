@@ -23,3 +23,26 @@ self.addEventListener('fetch', (event) => {
     );
   }
 });
+
+// 알림 클릭 시 앱 포커스 또는 열기
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
+      const existing = list.find((c) => 'focus' in c);
+      if (existing) return existing.focus();
+      return clients.openWindow('/');
+    })
+  );
+});
+
+// 서버 푸시 수신 (향후 백엔드 연동 시 사용)
+self.addEventListener('push', (e) => {
+  const data = e.data?.json?.() ?? {};
+  e.waitUntil(
+    self.registration.showNotification(data.title || '알림', {
+      body: data.body || '',
+      icon: '/favicon.ico',
+    })
+  );
+});

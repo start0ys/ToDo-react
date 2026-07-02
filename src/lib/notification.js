@@ -22,9 +22,20 @@ export async function requestPermission() {
 
 /**
  * 즉시 알림 전송 (권한 있을 때만)
+ * 모바일 브라우저에서 탭이 백그라운드일 때도 보이도록
+ * ServiceWorkerRegistration.showNotification() 우선 사용
  */
-export function sendNow(title, body) {
+export async function sendNow(title, body) {
   if (Notification.permission !== 'granted') return;
+  if ('serviceWorker' in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      await reg.showNotification(title, { body, icon: '/favicon.ico' });
+      return;
+    } catch {
+      // SW를 쓸 수 없으면 Notification API 폴백
+    }
+  }
   new Notification(title, { body, icon: '/favicon.ico' });
 }
 

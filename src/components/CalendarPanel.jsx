@@ -22,6 +22,7 @@ export default function CalendarPanel({
   onSelectDate,
   onEventClick,
   onAdd,
+  onGoToday,
   onEventDrop,
   getDayLists,
 }) {
@@ -54,8 +55,8 @@ export default function CalendarPanel({
   }, [schedules]);
 
   const headerToolbar = viewMode
-    ? { left: 'title', center: '', right: 'today' }
-    : { left: 'add', center: 'title', right: 'today prev,next' };
+    ? { left: 'title', center: '', right: 'myToday' }
+    : { left: 'add', center: 'title', right: 'myToday prev,next' };
 
   // 외부에서 특정 날짜로 달력 이동 (검색 등)
   useEffect(() => {
@@ -150,6 +151,7 @@ export default function CalendarPanel({
         headerToolbar={headerToolbar}
         customButtons={{
           add: { text: '추가', click: onAdd },
+          myToday: { text: '오늘', click: onGoToday },
         }}
         height={isMobile ? 'auto' : '100%'}
         expandRows={!isMobile}
