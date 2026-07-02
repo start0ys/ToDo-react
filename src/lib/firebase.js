@@ -28,3 +28,4 @@ export { db };
 // 기존 스키마 유지: 컬렉션 이름 'todo', 'calendar'
 export const todoCollection = () => (db ? collection(db, 'todo') : null);
 export const calendarCollection = () => (db ? collection(db, 'calendar') : null);
+export const metaDoc = (privateKey) => (db ? doc(db, 'meta', privateKey) : null);
