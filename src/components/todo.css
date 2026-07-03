@@ -615,17 +615,17 @@
 /* To Do / Finish 항상 좌우 나란히 (모바일 포함 강제) */
 .app.widget-mode .todo-lists {
   grid-template-columns: 1fr 1fr !important;
-  gap: 6px;
+  gap: 0px;
   flex: unset;
 }
 
 /* 컬럼 스타일 */
 .app.widget-mode .todo-col {
-  padding: 7px 8px;
+  padding: 5px;
   min-height: 0;
-  border: 1px solid var(--border);
+  border: none;
   border-radius: 8px;
-  background: var(--surface-2);
+  background: none;
 }
 .app.widget-mode .todo-col-title {
   font-size: 11px;
