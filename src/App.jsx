@@ -193,7 +193,14 @@ export default function App() {
   };
 
   const changeKey = () => {
-    const next = prompt(`현재 privateKey는 ${privateKey} 입니다.\n변경을 원하시면 privateKey를 입력해주세요.`);
+    const next = prompt(`PrivateKey는 일정 및 Todo 데이터를 구분하는 고유 키입니다.
+동일한 PrivateKey를 사용하는 기기에서는 같은 일정과 Todo를 조회하고 저장할 수 있습니다.
+
+현재 PrivateKey: ${privateKey}
+
+다른 기기와 데이터를 동기화하려면 동일한 PrivateKey를 입력하세요.
+변경하지 않으려면 [취소]를 눌러주세요.`);
+    console.log(privateKey);
     if (next) {
       setPrivateKey(next);
       location.reload();

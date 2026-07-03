@@ -57,6 +57,14 @@
   color: #fff;
 }
 
+.fc .fc-day-sun .fc-col-header-cell-cushion {
+  color: var(--sun);
+}
+
+ .fc .fc-day-sat .fc-col-header-cell-cushion {
+  color: var(--sat);
+}
+
 .fc .fc-col-header-cell-cushion {
   color: var(--text-muted);
   font-weight: 500;
@@ -78,6 +86,10 @@
 .fc .holiday {
   text-align: end;
   font-size: 11px;
+}
+
+.fc .fc-daygrid-day.fc-day-today {
+  background-color: #e8ebf1;
 }
 
 /* TODO 유무 점 표시 */
@@ -108,7 +120,7 @@
 
 /* ===== 선택된 날짜 강조 ===== */
 .fc .fc-day-selected .fc-daygrid-day-number {
-  background: var(--primary) !important;
+  background: var(--text) !important;
   color: #fff !important;
   border-radius: 50%;
   min-width: 26px;
@@ -212,6 +224,21 @@
 .app.widget-mode .fc .has-todo .fc-daygrid-day-number::after,
 .app.widget-mode .fc .has-finish .fc-daygrid-day-number::after {
   display: none;
+}
+
+.app.widget-mode .fc .fc-daygrid-day-top {
+  text-align: center;
+  display: block;
+}
+
+.app.widget-mode .fc .fc-day-selected .fc-daygrid-day-number {
+  min-width: 18px;
+  height: 18px;
+}
+
+.app.widget-mode .fc-theme-standard td, .fc-theme-standard th {
+  border-left: none;
+  border-right: none;
 }
 
 /* ===== 모바일: 헤더 툴바 + 카드 축소 ===== */
