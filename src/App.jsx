@@ -12,6 +12,11 @@ import { scheduleNotification, getPermissionState } from './lib/notification.js'
 
 const mode = new URLSearchParams(location.search).get('mode') || '';
 
+// 위젯 모드에서 배경을 카드와 동일하게 하여 flat하게 표시
+if (mode === '01' || mode === '02') {
+  document.documentElement.classList.add('widget-page');
+}
+
 function useTheme() {
   const [theme, setTheme] = useState(
     () =>
@@ -110,7 +115,10 @@ export default function App() {
   const [editingEvent, setEditingEvent] = useState(null);
   const [showRepeatModal, setShowRepeatModal] = useState(false);
 
-  const isViewMode = mode === '01';
+  const viewMode = mode === '01' ? 'calendar' : mode === '02' ? 'todo' : null;
+  const isCalendarWidget = viewMode === 'calendar';
+  const isTodoWidget = viewMode === 'todo';
+  const isWidget = viewMode !== null;
 
   const handleSelectDate = (dayKey, selection) => {
     setSelectedDay(dayKey);
@@ -202,9 +210,9 @@ export default function App() {
   );
 
   return (
-    <div className="app">
+    <div className={`app${isWidget ? ' widget-mode' : ''}`}>
       {/* 좌상단: 반복 할일 관리 */}
-      {!isViewMode && (
+      {!isWidget && (
         <div className="topbar-left">
           <button
             className={`repeat-mgr-btn${todos.recurringGroups.length > 0 ? ' has-groups' : ''}`}
@@ -217,44 +225,47 @@ export default function App() {
       )}
 
       {/* 우상단: 키 · 테마 */}
-      <div className="topbar">
-        {!isViewMode && (
+      {!isWidget && (
+        <div className="topbar">
           <button className="key-btn" onClick={changeKey} title="Private Key 변경">
             🔑
           </button>
+          <button
+            className="theme-toggle"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            title="테마 전환"
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+        </div>
+      )}
+
+      {!isWidget && <Clock onGoToday={handleGoToday} />}
+
+      <div className={`layout${isCalendarWidget ? ' view-mode widget-calendar' : isTodoWidget ? ' view-mode widget-todo' : ''}`}>
+        {!isTodoWidget && (
+          <CalendarPanel
+            schedules={schedules}
+            checkMap={todos.checkMap}
+            viewMode={isCalendarWidget}
+            selectedDay={selectedDay}
+            navigateTo={navigateTo}
+            onNavigated={() => setNavigateTo(null)}
+            onSelectDate={handleSelectDate}
+            onEventClick={handleEventClick}
+            onAdd={openAddModal}
+            onGoToday={handleGoToday}
+            onEventDrop={handleEventDrop}
+            getDayLists={todos.getDayLists}
+          />
         )}
-        <button
-          className="theme-toggle"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          title="테마 전환"
-        >
-          {theme === 'dark' ? '☀️' : '🌙'}
-        </button>
-      </div>
 
-      <Clock onGoToday={handleGoToday} />
-
-      <div className={`layout${isViewMode ? ' view-mode' : ''}`}>
-        <CalendarPanel
-          schedules={schedules}
-          checkMap={todos.checkMap}
-          viewMode={isViewMode}
-          selectedDay={selectedDay}
-          navigateTo={navigateTo}
-          onNavigated={() => setNavigateTo(null)}
-          onSelectDate={handleSelectDate}
-          onEventClick={handleEventClick}
-          onAdd={openAddModal}
-          onGoToday={handleGoToday}
-          onEventDrop={handleEventDrop}
-          getDayLists={todos.getDayLists}
-        />
-
-        {!isViewMode && (
+        {!isCalendarWidget && (
           <TodoPanel
             selectedDay={selectedDay}
             todos={todos}
-            onSelectDay={(day) => { setSelectedDay(day); setNavigateTo(day); }}
+            onSelectDay={isTodoWidget ? undefined : (day) => { setSelectedDay(day); setNavigateTo(day); }}
+            viewMode={isTodoWidget}
           />
         )}
       </div>

@@ -44,7 +44,7 @@ function WeeklyView({ weekDays, getDayLists, selectedDay, onSelectDay }) {
   );
 }
 
-export default function TodoPanel({ selectedDay, todos, onSelectDay }) {
+export default function TodoPanel({ selectedDay, todos, onSelectDay, viewMode }) {
   const { todos: todoItems, finishes } = todos.getDayLists(selectedDay);
   const [showWeekly, setShowWeekly] = useState(false);
   const [activeTag, setActiveTag] = useState(null);
@@ -72,50 +72,53 @@ export default function TodoPanel({ selectedDay, todos, onSelectDay }) {
 
   return (
     <div id="todo-panel" className="card todo-card">
-      <div className="todo-head">
-        {/* 날짜 + 주간 뷰 토글 */}
-        <div className="todo-date-row">
-          <span className="todo-date-spacer" />
-          <div className="todo-date">{koDate(selectedDay)}</div>
-          <button
-            className={`weekly-toggle-btn${showWeekly ? ' active' : ''}`}
-            onClick={() => setShowWeekly((v) => !v)}
-            title="주간 요약"
-          >
-            📊 주간
-          </button>
-        </div>
-
-        {/* 주간 뷰 */}
-        {showWeekly && (
-          <WeeklyView
-            weekDays={weekDays}
-            getDayLists={todos.getDayLists}
-            selectedDay={selectedDay}
-            onSelectDay={onSelectDay}
-          />
-        )}
-
-        {/* 진행 바 */}
-        {total > 0 && (
-          <div className="todo-progress-wrap">
-            <div className="todo-progress-track">
-              <div className="todo-progress-fill" style={{ width: `${pct}%` }} />
-            </div>
-            <span className="todo-progress-label">{finishes.length}/{total} 완료</span>
+      {/* 뷰 모드(위젯)에서는 헤더 전체 숨김 */}
+      {!viewMode && (
+        <div className="todo-head">
+          {/* 날짜 + 주간 뷰 토글 */}
+          <div className="todo-date-row">
+            <span className="todo-date-spacer" />
+            <div className="todo-date">{koDate(selectedDay)}</div>
+            <button
+              className={`weekly-toggle-btn${showWeekly ? ' active' : ''}`}
+              onClick={() => setShowWeekly((v) => !v)}
+              title="주간 요약"
+            >
+              📊 주간
+            </button>
           </div>
-        )}
 
-        {/* 반복 설정 + 입력창 */}
-        <TodoInput
-          onAdd={(text) => todos.addTodo(selectedDay, text)}
-          onAddRecurring={todos.addRecurringTodo}
-          selectedDay={selectedDay}
-        />
-      </div>
+          {/* 주간 뷰 */}
+          {showWeekly && (
+            <WeeklyView
+              weekDays={weekDays}
+              getDayLists={todos.getDayLists}
+              selectedDay={selectedDay}
+              onSelectDay={onSelectDay}
+            />
+          )}
+
+          {/* 진행 바 */}
+          {total > 0 && (
+            <div className="todo-progress-wrap">
+              <div className="todo-progress-track">
+                <div className="todo-progress-fill" style={{ width: `${pct}%` }} />
+              </div>
+              <span className="todo-progress-label">{finishes.length}/{total} 완료</span>
+            </div>
+          )}
+
+          {/* 입력창 */}
+          <TodoInput
+            onAdd={(text) => todos.addTodo(selectedDay, text)}
+            onAddRecurring={todos.addRecurringTodo}
+            selectedDay={selectedDay}
+          />
+        </div>
+      )}
 
       {/* 태그 필터 */}
-      {allTags.length > 0 && (
+      {!viewMode && allTags.length > 0 && (
         <div className="tag-filter-row">
           {allTags.map((tag) => (
             <button

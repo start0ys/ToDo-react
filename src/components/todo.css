@@ -604,8 +604,104 @@
   padding: 2px 3px;
   flex-shrink: 0;
   color: var(--danger);
-  transition: opacity 0.15s;
-  opacity: 0;
 }
-.todo-item:hover .todo-item-action { opacity: 1; }
+
+/* ===== 위젯 모드 할일 (mode=02) ===== */
+.app.widget-mode .todo-card {
+  padding: 8px 10px;
+  gap: 6px;
+}
+
+/* To Do / Finish 항상 좌우 나란히 (모바일 포함 강제) */
+.app.widget-mode .todo-lists {
+  grid-template-columns: 1fr 1fr !important;
+  gap: 6px;
+  flex: unset;
+}
+
+/* 컬럼 스타일 */
+.app.widget-mode .todo-col {
+  padding: 7px 8px;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+}
+.app.widget-mode .todo-col-title {
+  font-size: 11px;
+  font-weight: 700;
+  margin-bottom: 5px;
+}
+.app.widget-mode .todo-items {
+  gap: 3px;
+  overflow-y: unset;
+}
+
+/* 아이템 스타일 - 컴팩트하게 */
+.app.widget-mode .todo-item {
+  padding: 4px 6px;
+  gap: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+/* 체크박스 작게 */
+.app.widget-mode .todo-check-btn {
+  width: 13px;
+  height: 13px;
+  border-width: 1.5px;
+  flex-shrink: 0;
+}
+.app.widget-mode .todo-check-btn::after {
+  width: 6px;
+  height: 3.5px;
+}
+
+/* X 버튼 작게 */
+.app.widget-mode .todo-item-action {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 1px 2px;
+}
+
+/* 텍스트: 한 줄 말줄임 */
+.app.widget-mode .todo-text-wrap {
+  min-width: 0;
+  cursor: default;
+}
+.app.widget-mode .todo-item-text {
+  font-size: 11px;
+  line-height: 1.35;
+  word-break: keep-all;
+}
+
+/* Finish 항목: 취소선 제거, 흐리게만 표시 */
+.app.widget-mode .todo-item-text.done {
+  text-decoration: none;
+  opacity: 0.7;
+  color: var(--text);
+}
+
+/* 태그는 위젯에서 숨김 (공간 절약) */
+.app.widget-mode .item-tags {
+  display: none;
+}
+
+.app.widget-mode .todo-empty {
+  font-size: 10px;
+  padding: 6px;
+  color: var(--text-muted);
+}
+
+/* 위젯 모드에서 불필요한 인터랙티브 요소 숨김 */
+.app.widget-mode .drag-handle,
+.app.widget-mode .priority-dot,
+.app.widget-mode .todo-carryover-btn,
+.app.widget-mode .todo-move-btn,
+.app.widget-mode .reminder-wrap,
+.app.widget-mode .todo-item-restore,
+.app.widget-mode .finish-view-toggle {
+  display: none !important;
+}
 

@@ -1,21 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   query,
   where,
   getDocs,
-  getDoc,
   doc,
   setDoc,
   updateDoc,
   deleteDoc,
 } from 'firebase/firestore';
-import { db, todoCollection, metaDoc, isFirebaseAvailable } from '../lib/firebase';
+import { db, todoCollection, isFirebaseAvailable } from '../lib/firebase';
 import { uuid, toDayKey, addDays } from '../lib/date';
 
 export function useTodos(privateKey) {
   const [allTodos, setAllTodos] = useState([]);
   const [loaded, setLoaded] = useState(false);
-  const carriedOver = useRef(false);
 
   useEffect(() => {
     if (!isFirebaseAvailable || !privateKey) {
@@ -33,48 +31,44 @@ export function useTodos(privateKey) {
     return () => { alive = false; };
   }, [privateKey]);
 
-  // 자동 이관: 앱 첫 로드 시 전날(들)의 이관 설정된 미완료 할일을 오늘에 복사
-  // Firebase의 meta/{privateKey}.lastCarryOverDate 로 기기 간 중복 방지
+  // 자동 이관: 전날 carryOver=true이고 미완료(del=false)인 항목만 오늘로 복사
+  // 전날 기준: 완료된 항목이나 그 이전 날짜 항목은 이관 대상에서 제외
   useEffect(() => {
-    if (!loaded || carriedOver.current) return;
-    carriedOver.current = true;
+    if (!loaded) return;
+
     const today = toDayKey(new Date());
+    const yesterday = toDayKey(addDays(new Date(), -1));
 
-    (async () => {
-      if (isFirebaseAvailable && privateKey) {
-        const snap = await getDoc(metaDoc(privateKey));
-        if (snap.exists() && snap.data().lastCarryOverDate === today) return;
-      } else {
-        const storageKey = `carriedOverDate_${privateKey || 'default'}`;
-        if (localStorage.getItem(storageKey) === today) return;
-      }
+    // 오늘 이미 있는 활성 항목의 텍스트 집합 (동일 텍스트 중복 이관 방지)
+    const todayActiveTexts = new Set(
+      allTodos.filter((t) => t.day === today && !t.del).map((t) => t.text)
+    );
 
-      const toCarry = allTodos.filter((t) => t.carryOver && !t.del && t.day < today);
+    // 전날 항목 중 carryOver=true이고 미완료인 것만 수집 (같은 텍스트 중복 제거)
+    const seenTexts = new Set();
+    const toCarry = allTodos.filter((t) => {
+      if (!t.carryOver || t.del || t.day !== yesterday) return false;
+      if (todayActiveTexts.has(t.text) || seenTexts.has(t.text)) return false;
+      seenTexts.add(t.text);
+      return true;
+    });
 
-      // 이관 여부와 무관하게 오늘 날짜 기록하여 다른 기기 중복 방지
-      if (isFirebaseAvailable && privateKey) {
-        setDoc(metaDoc(privateKey), { lastCarryOverDate: today }, { merge: true });
-      } else {
-        localStorage.setItem(`carriedOverDate_${privateKey || 'default'}`, today);
-      }
+    if (toCarry.length === 0) return;
 
-      if (toCarry.length === 0) return;
-
-      const todayMaxSeq = allTodos
-        .filter((t) => t.day === today && !t.del)
-        .reduce((m, t) => Math.max(m, t.seq || 0), 0);
-      let seq = todayMaxSeq;
-      const copies = toCarry.map((t) => {
-        const id = uuid();
-        const copy = { id, day: today, text: t.text, del: false, seq: ++seq, owner: t.owner, carryOver: true };
-        if (t.priority) copy.priority = t.priority;
-        return copy;
-      });
-      setAllTodos((prev) => [...prev, ...copies]);
-      if (isFirebaseAvailable) {
-        copies.forEach((copy) => setDoc(doc(db, 'todo', copy.id), copy));
-      }
-    })();
+    const todayMaxSeq = allTodos
+      .filter((t) => t.day === today && !t.del)
+      .reduce((m, t) => Math.max(m, t.seq || 0), 0);
+    let seq = todayMaxSeq;
+    const copies = toCarry.map((t) => {
+      const id = uuid();
+      const copy = { id, day: today, text: t.text, del: false, seq: ++seq, owner: t.owner, carryOver: true };
+      if (t.priority) copy.priority = t.priority;
+      return copy;
+    });
+    setAllTodos((prev) => [...prev, ...copies]);
+    if (isFirebaseAvailable) {
+      copies.forEach((copy) => setDoc(doc(db, 'todo', copy.id), copy));
+    }
   }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const recurringGroups = useMemo(() => {
