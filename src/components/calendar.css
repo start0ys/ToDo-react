@@ -139,6 +139,15 @@
   margin: 2px 0;
 }
 
+.fc .fc-event-title-container {
+  text-align: center;
+  font-weight: bold;
+}
+
+.fc .fc-scrollgrid-section-header .fc-col-header th {
+  border: 1px solid var(--fc-border-color);
+}
+
 /* ===== 날짜 피커 팝업 ===== */
 .cal-picker-popup {
   position: absolute;
@@ -196,8 +205,16 @@
 }
 
 /* ===== 위젯 달력: 스크롤그리드 우/하단 테두리 보장 ===== */
-.app.widget-mode .fc .fc-scrollgrid {
-  border: 1px solid var(--fc-border-color, var(--border));
+.app.widget-mode .fc .fc-scrollgrid, .app.widget-mode .fc .fc-scrollgrid th{
+  border: none;
+}
+
+.app.widget-mode .fc .fc-toolbar.fc-header-toolbar {
+  margin-bottom: 10px;
+}
+
+.app.widget-mode .fc-scrollgrid-section-header .fc-col-header th {
+  border-bottom: 1px solid var(--fc-border-color) !important;
 }
 
 /* ===== 위젯 모드 달력 ===== */
@@ -205,7 +222,8 @@
   padding: 8px 12px 12px;
 }
 .app.widget-mode .fc .fc-toolbar-title {
-  font-size: 14px;
+  font-size: 12px;
+  padding: 10px 0 0 10px;
 }
 .app.widget-mode .fc .fc-button {
   padding: 2px 8px;
@@ -243,9 +261,10 @@
   height: 18px;
 }
 
-.app.widget-mode .fc-theme-standard td, .fc-theme-standard th {
+.app.widget-mode .fc-theme-standard td {
   border-left: none;
   border-right: none;
+  border-bottom: none;
 }
 
 .app.widget-mode .fc .fc-day-selected .fc-daygrid-day-number {
@@ -280,5 +299,11 @@
   .calendar-card .fc .fc-daygrid-day-number {
     padding: 3px 5px;
     font-size: 12px;
+  }
+
+  .fc .fc-event-title-container {
+    font-weight: normal;
+    font-size: 8px;
+    font-weight: bold;
   }
 }
