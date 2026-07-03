@@ -705,3 +705,11 @@
   display: none !important;
 }
 
+@media (max-width: 900px) {
+  .todo-item-text {
+    font-size: 11px;
+    line-height: 1.35;
+    word-break: keep-all;
+  }
+}
+
