@@ -93,21 +93,28 @@
 }
 
 /* TODO 유무 점 표시 */
-.fc .has-todo .fc-daygrid-day-number::after,
-.fc .has-finish .fc-daygrid-day-number::after {
+.fc .has-todo:not(.fc-day-selected) .fc-daygrid-day-number::before,
+.fc .has-finish:not(.fc-day-selected) .fc-daygrid-day-number::before {
   content: '';
   display: inline-block;
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   margin-left: 4px;
-  vertical-align: middle;
+  vertical-align: top;
 }
-.fc .has-todo .fc-daygrid-day-number::after {
+.fc .has-todo:not(.fc-day-selected) .fc-daygrid-day-number::before {
   background: #ff1965;
 }
-.fc .has-finish .fc-daygrid-day-number::after {
+.fc .has-finish:not(.fc-day-selected) .fc-daygrid-day-number::before {
   background: var(--success);
+}
+
+.fc .has-todo.fc-day-selected .fc-daygrid-day-number {
+  background: #ff1965 !important;
+}
+.fc .has-finish.fc-day-selected .fc-daygrid-day-number {
+  background: var(--success) !important;
 }
 
 .fc .fc-event {
@@ -221,8 +228,8 @@
   font-size: 9px;
 }
 /* 위젯 달력에서 할일 상태 점 숨김 */
-.app.widget-mode .fc .has-todo .fc-daygrid-day-number::after,
-.app.widget-mode .fc .has-finish .fc-daygrid-day-number::after {
+.app.widget-mode .fc .has-todo .fc-daygrid-day-number::before,
+.app.widget-mode .fc .has-finish .fc-daygrid-day-number::before {
   display: none;
 }
 
@@ -239,6 +246,10 @@
 .app.widget-mode .fc-theme-standard td, .fc-theme-standard th {
   border-left: none;
   border-right: none;
+}
+
+.app.widget-mode .fc .fc-day-selected .fc-daygrid-day-number {
+  background: var(--text) !important;
 }
 
 /* ===== 모바일: 헤더 툴바 + 카드 축소 ===== */
