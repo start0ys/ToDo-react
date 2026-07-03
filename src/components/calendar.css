@@ -215,6 +215,9 @@
   display: none;
 }
 
+.app.widget-mode .fc .fc-day-selected .fc-daygrid-day-number {
+  background: var(--text) !important;
+}
 
 /* ===== 모바일: 헤더 툴바 + 카드 축소 ===== */
 @media (max-width: 900px) {
@@ -278,10 +281,6 @@
     border-left: none;
     border-right: none;
     border-bottom: none;
-  }
-
-  .fc .fc-day-selected .fc-daygrid-day-number {
-    background: var(--text) !important;
   }
 
   .fc .fc-daygrid-day-top {
