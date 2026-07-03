@@ -255,7 +255,7 @@
     font-weight: bold;
   }
 
-  .fc .fc-scrollgrid, .fc .fc-scrollgrid-section-header .fc-col-header th{
+  .fc .fc-scrollgrid, .fc .fc-scrollgrid-section-header th, .fc .fc-scrollgrid-section-header .fc-col-header th{
     border: none;
   }
 
