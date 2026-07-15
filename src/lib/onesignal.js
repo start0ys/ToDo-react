@@ -48,7 +48,11 @@ export async function ensurePushPermission() {
   if (!isOneSignalConfigured) return nativeRequestPermission();
   try {
     await initOneSignal(); // 이미 초기화됐으면 기존 프로미스 재사용
+    // v16: requestPermission()은 권한만 요청. 실제 구독(푸시 토큰 생성)은
+    // optIn()이 담당한다. 이걸 빼먹으면 "권한 있음 + No Push Token
+    // (Never Subscribed)" 상태가 되어 알림 대상이 없다.
     await OneSignal.Notifications.requestPermission();
+    await OneSignal.User.PushSubscription.optIn();
   } catch (e) {
     // 에러를 삼키면 클릭이 "무반응"처럼 보이므로 콘솔에 남긴다.
     console.error('[push] ensurePushPermission 실패:', e);
