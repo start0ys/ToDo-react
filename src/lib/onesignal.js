@@ -92,10 +92,17 @@ export async function schedulePush(title, body, fireAt, privateKey) {
         sendAfter: fireAt.toISOString(),
       }),
     });
-    if (!res.ok) return null;
-    const data = await res.json();
-    return data.id || null;
-  } catch {
+    const data = await res.json().catch(() => ({}));
+    // OneSignal 응답을 콘솔에 남겨 전송 실패 원인을 눈으로 확인할 수 있게 한다.
+    // 성공: { id, recipients }, 실패: { errors: [...] } 형태.
+    if (!res.ok || !data.id || data.errors) {
+      console.warn('[push] 예약 실패 응답:', res.status, data);
+      return null;
+    }
+    console.info('[push] 예약 성공:', data.id, '수신대상:', data.recipients);
+    return data.id;
+  } catch (e) {
+    console.warn('[push] 예약 요청 실패(네트워크/함수 없음):', e);
     return null; // dev 환경 등 함수가 없을 때도 앱이 깨지지 않게
   }
 }
