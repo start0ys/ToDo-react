@@ -11,7 +11,6 @@ const APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID || '';
 // 기존 앱이 깨지지 않도록 한다.
 export const isOneSignalConfigured = Boolean(APP_ID);
 
-let initialized = false;
 let initPromise = null;
 
 /**
@@ -23,21 +22,12 @@ export function initOneSignal(privateKey) {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
-    // 디버깅: 콘솔에서 localStorage.osdebug='1' 후 새로고침하면 OneSignal
-    // 상세 로그(trace)가 찍혀 구독 실패 원인(Site URL 불일치 등)을 볼 수 있다.
-    try {
-      if (typeof localStorage !== 'undefined' && localStorage.getItem('osdebug')) {
-        await OneSignal.Debug.setLogLevel('trace');
-      }
-    } catch { /* Debug 네임스페이스 없으면 무시 */ }
-
     await OneSignal.init({
       appId: APP_ID,
       allowLocalhostAsSecureOrigin: true, // 로컬 개발용 (배포 시 영향 없음)
       // 워커는 루트 기본 경로(/OneSignalSDKWorker.js)를 사용한다. 앱의 SW도
       // 같은 파일/스코프로 등록하므로 충돌이 없다.
     });
-    initialized = true;
 
     // v16: setExternalUserId → login
     if (privateKey) await OneSignal.login(privateKey);
@@ -67,11 +57,6 @@ export async function ensurePushPermission() {
   // optedIn(구독 완료)은 권한 허용 직후 바로 true가 아닐 수 있으므로,
   // 브라우저 실제 권한 상태로 판정한다. (구독은 백그라운드에서 완료됨)
   return getPermissionState() === 'granted';
-}
-
-export function isPushOptedIn() {
-  if (!initialized) return false;
-  return OneSignal.User.PushSubscription.optedIn === true;
 }
 
 /**
@@ -104,16 +89,14 @@ export async function schedulePush(title, body, fireAt, privateKey) {
       }),
     });
     const data = await res.json().catch(() => ({}));
-    // OneSignal 응답을 콘솔에 남겨 전송 실패 원인을 눈으로 확인할 수 있게 한다.
+    // 실패(4xx/5xx 또는 errors)면 원인 파악용으로만 경고를 남긴다.
     // 성공: { id, recipients }, 실패: { errors: [...] } 형태.
     if (!res.ok || !data.id || data.errors) {
-      console.warn('[push] 예약 실패 응답:', res.status, data);
+      console.warn('[push] 예약 실패:', res.status, data);
       return null;
     }
-    console.info('[push] 예약 성공:', data.id, '수신대상:', data.recipients);
     return data.id;
-  } catch (e) {
-    console.warn('[push] 예약 요청 실패(네트워크/함수 없음):', e);
+  } catch {
     return null; // dev 환경 등 함수가 없을 때도 앱이 깨지지 않게
   }
 }
