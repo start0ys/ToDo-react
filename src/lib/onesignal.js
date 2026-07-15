@@ -1,6 +1,7 @@
 // OneSignal v16 웹푸시 연동 (예약 발송 + 멀티기기)
 // 예약 타이머는 브라우저가 아니라 OneSignal 서버가 들고 있으므로
 // 브라우저가 완전히 꺼져 있어도 지정 시간에 알림이 전송된다.
+
 import OneSignal from 'react-onesignal';
 import { requestPermission as nativeRequestPermission } from './notification';
 
