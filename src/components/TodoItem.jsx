@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { requestPermission, getPermissionState } from '../lib/notification.js';
+import { getPermissionState } from '../lib/notification.js';
+import { ensurePushPermission } from '../lib/onesignal.js';
 import TimePicker from './TimePicker.jsx';
 
 function parseTags(text) {
@@ -63,7 +64,7 @@ export default function TodoItem({
       alert('알림이 차단되어 있습니다.\n브라우저 주소창 🔒 → 알림 → 허용 후 새로고침해주세요.');
       return;
     }
-    const granted = await requestPermission();
+    const granted = await ensurePushPermission();
     if (!granted) return;
     setShowPicker(true);
   };

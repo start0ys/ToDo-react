@@ -8,7 +8,7 @@ import { useTodos } from './hooks/useTodos.js';
 import { useSchedules } from './hooks/useSchedules.js';
 import { toDayKey, uuid } from './lib/date.js';
 import { textColor } from './lib/color.js';
-import { scheduleNotification, getPermissionState } from './lib/notification.js';
+import { initOneSignal, schedulePush, cancelPush, reminderToDate } from './lib/onesignal.js';
 
 const mode = new URLSearchParams(location.search).get('mode') || '';
 
@@ -42,61 +42,12 @@ export default function App() {
     window.AndroidApp?.savePrivateKey?.(privateKey);
   }, [privateKey]);
 
-  // 할 일 알림 스케줄링 (권한이 있을 때만 동작)
+  // OneSignal 초기화 + privateKey를 external_id로 등록 (멀티기기 알림 묶기).
+  // 예약 발송은 setReminder/일정 저장 시점에 서버(OneSignal)로 등록되므로
+  // 여기서 setTimeout 스케줄링은 하지 않는다.
   useEffect(() => {
-    if (!todos.allTodos?.length || getPermissionState() !== 'granted') return;
-    const today = toDayKey(new Date());
-    const now = Date.now();
-    const timers = [];
-
-    todos.allTodos.forEach((todo) => {
-      if (!todo.reminder || todo.del || todo.day !== today) return;
-      const [h, m] = todo.reminder.split(':');
-      const fireDate = new Date();
-      fireDate.setHours(Number(h), Number(m), 0, 0);
-      const delay = fireDate.getTime() - now;
-      if (delay > 0) {
-        timers.push(
-          scheduleNotification(
-            '📌 할 일 알림',
-            todo.text.replace(/#[^\s#]+/g, '').trim(),
-            delay
-          )
-        );
-      }
-    });
-
-    return () => timers.forEach(clearTimeout);
-  }, [todos.allTodos]);
-
-  // 캘린더 일정 알림 스케줄링 — reminder는 "HH:MM" 절대시각 (7일 이내만)
-  useEffect(() => {
-    if (!schedules.length || getPermissionState() !== 'granted') return;
-    const now = Date.now();
-    const timers = [];
-
-    schedules.forEach((event) => {
-      if (!event.reminder || typeof event.reminder !== 'string') return;
-      const eventStart = new Date(event.start);
-      if (isNaN(eventStart.getTime())) return;
-      const [h, m] = event.reminder.split(':');
-      // 이벤트 시작일 당일 HH:MM 에 알림
-      const fireDate = new Date(
-        eventStart.getFullYear(),
-        eventStart.getMonth(),
-        eventStart.getDate(),
-        Number(h),
-        Number(m),
-        0, 0
-      );
-      const delay = fireDate.getTime() - now;
-      if (delay > 0 && delay < 7 * 24 * 60 * 60 * 1000) {
-        timers.push(scheduleNotification(`📅 일정 알림`, event.title, delay));
-      }
-    });
-
-    return () => timers.forEach(clearTimeout);
-  }, [schedules]);
+    if (privateKey) initOneSignal(privateKey);
+  }, [privateKey]);
 
   // 'N' 키로 입력창 포커스
   useEffect(() => {
@@ -154,20 +105,34 @@ export default function App() {
     setEditingEvent(null);
   };
 
-  const handleSaveEvent = (title, color, reminder) => {
+  const handleSaveEvent = async (title, color, reminder) => {
     if (!title) return;
     const base = editingEvent || pendingSelection;
     if (!base) return;
     const oldId = editingEvent?.id;
+
+    // 수정 시 기존 예약 취소
+    const oldPushId = editingEvent?.extendedProps?.pushId;
+    if (oldPushId) cancelPush(oldPushId);
+
+    const startStr = base.startStr ?? base.start;
+    // 일정 시작일 당일 reminder("HH:MM")에 알림 예약
+    let pushId = null;
+    if (reminder) {
+      const fireAt = reminderToDate(toDayKey(new Date(startStr)), reminder);
+      pushId = await schedulePush('📅 일정 알림', title, fireAt, privateKey);
+    }
+
     const newEvent = {
       id: uuid(),
       title,
-      start: base.startStr ?? base.start,
+      start: startStr,
       end: base.endStr ?? base.end,
       allDay: base.allDay,
       color,
       textColor: textColor(color),
       ...(reminder != null && { reminder }),
+      ...(pushId && { pushId }),
     };
     saveAll((prev) => [...prev.filter((s) => s.id !== oldId), newEvent]);
     closeModal();
@@ -176,18 +141,29 @@ export default function App() {
   const handleDeleteEvent = () => {
     if (!editingEvent) return;
     if (!confirm(`${editingEvent.title} 을 제거 하시겠습니까?`)) return;
+    if (editingEvent.extendedProps?.pushId) cancelPush(editingEvent.extendedProps.pushId);
     saveAll((prev) => prev.filter((s) => s.id !== editingEvent.id));
     closeModal();
   };
 
-  const handleEventDrop = (event, revert) => {
+  const handleEventDrop = async (event, revert) => {
     if (!confirm(`${event.title} 을 이동하시겠습니까?`)) {
       revert();
       return;
     }
+    // 날짜가 바뀌면 알림 시각도 달라지므로 예약을 다시 등록
+    const reminder = event.extendedProps?.reminder;
+    let pushId = event.extendedProps?.pushId ?? null;
+    if (reminder) {
+      if (pushId) cancelPush(pushId);
+      const fireAt = reminderToDate(toDayKey(new Date(event.startStr)), reminder);
+      pushId = await schedulePush('📅 일정 알림', event.title, fireAt, privateKey);
+    }
     saveAll((prev) =>
       prev.map((s) =>
-        s.id === event.id ? { ...s, start: event.startStr, end: event.endStr, allDay: event.allDay } : s
+        s.id === event.id
+          ? { ...s, start: event.startStr, end: event.endStr, allDay: event.allDay, pushId }
+          : s
       )
     );
   };

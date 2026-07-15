@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { COLOR_PRESETS } from '../lib/color.js';
-import { requestPermission, getPermissionState } from '../lib/notification.js';
+import { getPermissionState } from '../lib/notification.js';
+import { ensurePushPermission } from '../lib/onesignal.js';
 import TimePicker from './TimePicker.jsx';
 import './modal.css';
 
@@ -35,7 +36,7 @@ export default function EventModal({ initial, isEdit, onConfirm, onDelete, onClo
         alert('알림이 차단되어 있습니다.\n브라우저 주소창 🔒 → 알림 → 허용 후 새로고침해주세요.');
         return;
       }
-      await requestPermission();
+      await ensurePushPermission();
       if (!initial.reminder) setReminderTime(nextFiveMin());
     }
     setReminderEnabled(checked);

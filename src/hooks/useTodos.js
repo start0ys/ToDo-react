@@ -10,6 +10,10 @@ import {
 } from 'firebase/firestore';
 import { db, todoCollection, isFirebaseAvailable } from '../lib/firebase';
 import { uuid, toDayKey, addDays } from '../lib/date';
+import { schedulePush, cancelPush, reminderToDate } from '../lib/onesignal';
+
+// 할일 텍스트에서 태그(#foo)를 제거한 알림 본문
+const reminderBody = (text) => (text || '').replace(/#[^\s#]+/g, '').trim();
 
 export function useTodos(privateKey) {
   const [allTodos, setAllTodos] = useState([]);
@@ -191,15 +195,22 @@ export function useTodos(privateKey) {
         const target = prev.find((t) => t.id === id);
         if (!target) return prev;
         const seq = maxSeq(target.day, true) + 1;
-        if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { del: true, seq });
-        return prev.map((t) => (t.id === id ? { ...t, del: true, seq } : t));
+        // 완료된 할일은 알림 불필요 → 예약 취소
+        if (target.pushId) cancelPush(target.pushId);
+        const patch = { del: true, seq, ...(target.pushId && { pushId: null }) };
+        if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), patch);
+        return prev.map((t) => (t.id === id ? { ...t, ...patch } : t));
       });
     },
     [maxSeq]
   );
 
   const deleteTodo = useCallback((id) => {
-    setAllTodos((prev) => prev.filter((t) => t.id !== id));
+    setAllTodos((prev) => {
+      const target = prev.find((t) => t.id === id);
+      if (target?.pushId) cancelPush(target.pushId);
+      return prev.filter((t) => t.id !== id);
+    });
     if (isFirebaseAvailable) deleteDoc(doc(db, 'todo', id));
   }, []);
 
@@ -207,7 +218,10 @@ export function useTodos(privateKey) {
     setAllTodos((prev) => {
       const toDelete = prev.filter((t) => t.repeatId === repeatId);
       const deleteIds = new Set(toDelete.map((t) => t.id));
-      if (isFirebaseAvailable) toDelete.forEach((t) => deleteDoc(doc(db, 'todo', t.id)));
+      toDelete.forEach((t) => {
+        if (t.pushId) cancelPush(t.pushId);
+        if (isFirebaseAvailable) deleteDoc(doc(db, 'todo', t.id));
+      });
       return prev.filter((t) => !deleteIds.has(t.id));
     });
   }, []);
@@ -246,16 +260,43 @@ export function useTodos(privateKey) {
     if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { priority });
   }, []);
 
-  const moveToDay = useCallback((id, newDay) => {
-    setAllTodos((prev) => prev.map((t) => (t.id === id ? { ...t, day: newDay } : t)));
-    if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { day: newDay });
-  }, []);
+  // 기존 예약 취소 후, reminder/day 기준으로 예약 푸시 재등록.
+  // 반환된 pushId를 상태·Firestore에 저장해 멀티기기 중복 예약을 방지한다.
+  const syncReminderPush = useCallback(
+    async (todo, nextReminder, nextDay) => {
+      if (todo?.pushId) cancelPush(todo.pushId);
+      const fireAt = reminderToDate(nextDay ?? todo?.day, nextReminder);
+      const pushId = fireAt
+        ? await schedulePush('📌 할 일 알림', reminderBody(todo?.text), fireAt, privateKey)
+        : null;
 
-  const setReminder = useCallback((id, time) => {
-    const value = time || null;
-    setAllTodos((prev) => prev.map((t) => (t.id === id ? { ...t, reminder: value } : t)));
-    if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { reminder: value });
-  }, []);
+      setAllTodos((prev) => prev.map((t) => (t.id === todo.id ? { ...t, pushId } : t)));
+      if (isFirebaseAvailable) updateDoc(doc(db, 'todo', todo.id), { pushId });
+    },
+    [privateKey]
+  );
+
+  const moveToDay = useCallback(
+    (id, newDay) => {
+      const target = allTodos.find((t) => t.id === id);
+      setAllTodos((prev) => prev.map((t) => (t.id === id ? { ...t, day: newDay } : t)));
+      if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { day: newDay });
+      // 날짜가 바뀌면 알림 발송 시각도 달라지므로 예약을 다시 등록
+      if (target?.reminder) syncReminderPush(target, target.reminder, newDay);
+    },
+    [allTodos, syncReminderPush]
+  );
+
+  const setReminder = useCallback(
+    (id, time) => {
+      const value = time || null;
+      const target = allTodos.find((t) => t.id === id);
+      setAllTodos((prev) => prev.map((t) => (t.id === id ? { ...t, reminder: value } : t)));
+      if (isFirebaseAvailable) updateDoc(doc(db, 'todo', id), { reminder: value });
+      if (target) syncReminderPush(target, value, target.day);
+    },
+    [allTodos, syncReminderPush]
+  );
 
   const setCarryOver = useCallback((id, value) => {
     const flag = value || null;
