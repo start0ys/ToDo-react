@@ -23,6 +23,14 @@ export function initOneSignal(privateKey) {
   if (initPromise) return initPromise;
 
   initPromise = (async () => {
+    // 디버깅: 콘솔에서 localStorage.osdebug='1' 후 새로고침하면 OneSignal
+    // 상세 로그(trace)가 찍혀 구독 실패 원인(Site URL 불일치 등)을 볼 수 있다.
+    try {
+      if (typeof localStorage !== 'undefined' && localStorage.getItem('osdebug')) {
+        await OneSignal.Debug.setLogLevel('trace');
+      }
+    } catch { /* Debug 네임스페이스 없으면 무시 */ }
+
     await OneSignal.init({
       appId: APP_ID,
       allowLocalhostAsSecureOrigin: true, // 로컬 개발용 (배포 시 영향 없음)
