@@ -3,7 +3,7 @@
 // 브라우저가 완전히 꺼져 있어도 지정 시간에 알림이 전송된다.
 
 import OneSignal from 'react-onesignal';
-import { requestPermission as nativeRequestPermission } from './notification';
+import { requestPermission as nativeRequestPermission, getPermissionState } from './notification';
 
 const APP_ID = import.meta.env.VITE_ONESIGNAL_APP_ID || '';
 
@@ -46,9 +46,16 @@ export function initOneSignal(privateKey) {
  */
 export async function ensurePushPermission() {
   if (!isOneSignalConfigured) return nativeRequestPermission();
-  await initOneSignal(); // 이미 초기화됐으면 기존 프로미스 재사용
-  await OneSignal.Notifications.requestPermission();
-  return OneSignal.User.PushSubscription.optedIn === true;
+  try {
+    await initOneSignal(); // 이미 초기화됐으면 기존 프로미스 재사용
+    await OneSignal.Notifications.requestPermission();
+  } catch (e) {
+    // 에러를 삼키면 클릭이 "무반응"처럼 보이므로 콘솔에 남긴다.
+    console.error('[push] ensurePushPermission 실패:', e);
+  }
+  // optedIn(구독 완료)은 권한 허용 직후 바로 true가 아닐 수 있으므로,
+  // 브라우저 실제 권한 상태로 판정한다. (구독은 백그라운드에서 완료됨)
+  return getPermissionState() === 'granted';
 }
 
 export function isPushOptedIn() {
