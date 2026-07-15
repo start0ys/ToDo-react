@@ -34,9 +34,8 @@ export function initOneSignal(privateKey) {
     await OneSignal.init({
       appId: APP_ID,
       allowLocalhostAsSecureOrigin: true, // 로컬 개발용 (배포 시 영향 없음)
-      // 기존 /sw.js(루트 스코프)와 충돌하지 않도록 OneSignal 워커를 별도 스코프로 분리
-      serviceWorkerParam: { scope: '/push/onesignal/' },
-      serviceWorkerPath: 'push/onesignal/OneSignalSDKWorker.js',
+      // 워커는 루트 기본 경로(/OneSignalSDKWorker.js)를 사용한다. 앱의 SW도
+      // 같은 파일/스코프로 등록하므로 충돌이 없다.
     });
     initialized = true;
 

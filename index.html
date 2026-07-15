@@ -22,7 +22,8 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js');
+          // OneSignal 워커와 동일 파일/스코프로 등록해 충돌을 없앤다.
+          navigator.serviceWorker.register('/OneSignalSDKWorker.js');
         });
       }
     </script>
