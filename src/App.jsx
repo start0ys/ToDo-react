@@ -12,7 +12,7 @@ import { useSchedules } from './hooks/useSchedules.js';
 import { toDayKey, uuid } from './lib/date.js';
 import { textColor } from './lib/color.js';
 import { initOneSignal, schedulePush, cancelPush, reminderToDate } from './lib/onesignal.js';
-import { upsertGCalEvent, deleteGCalEvent } from './lib/googleCalendar.js';
+import { upsertGCalEvent, deleteGCalEvent, setGCalAccountHint } from './lib/googleCalendar.js';
 
 const mode = new URLSearchParams(location.search).get('mode') || '';
 
@@ -65,6 +65,11 @@ export default function App() {
   useEffect(() => {
     if (dataKey) initOneSignal(dataKey);
   }, [dataKey]);
+
+  // 캘린더 권한 요청을 앱 로그인 계정으로 고정 (브라우저 기본 구글 계정과 다를 수 있음)
+  useEffect(() => {
+    setGCalAccountHint(user?.email || '');
+  }, [user]);
 
   // 'N' 키로 입력창 포커스
   useEffect(() => {

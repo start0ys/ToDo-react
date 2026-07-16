@@ -17,6 +17,15 @@ let accessToken = null;
 let tokenExpiry = 0;
 let pendingResolve = null;
 let pendingReject = null;
+let accountHint = ''; // 앱 로그인(Firebase) 계정 이메일 → 캘린더 권한도 같은 계정으로 강제
+
+/**
+ * 캘린더 권한 요청 시 사용할 계정 힌트(로그인 이메일)를 지정.
+ * 브라우저에 여러 구글 계정이 있어도 앱 로그인 계정으로 고정하기 위함.
+ */
+export function setGCalAccountHint(email) {
+  accountHint = email || '';
+}
 
 function loadGis() {
   if (gisPromise) return gisPromise;
@@ -66,7 +75,10 @@ export async function ensureGCalToken(interactive = true) {
     pendingResolve = resolve;
     pendingReject = reject;
     try {
-      tokenClient.requestAccessToken({ prompt: interactive ? '' : 'none' });
+      tokenClient.requestAccessToken({
+        prompt: interactive ? '' : 'none',
+        ...(accountHint && { hint: accountHint }),
+      });
     } catch (e) {
       pendingResolve = pendingReject = null;
       reject(e);
