@@ -3,7 +3,10 @@ import Clock from './components/Clock.jsx';
 import CalendarPanel from './components/CalendarPanel.jsx';
 import TodoPanel from './components/TodoPanel.jsx';
 import EventModal from './components/EventModal.jsx';
-import { getPrivateKey, setPrivateKey } from './lib/privateKey.js';
+import LoginScreen from './components/LoginScreen.jsx';
+import { useAuth } from './hooks/useAuth.js';
+import { migratePrivateKeyToUid } from './lib/migrate.js';
+import { isFirebaseAvailable } from './lib/firebase.js';
 import { useTodos } from './hooks/useTodos.js';
 import { useSchedules } from './hooks/useSchedules.js';
 import { toDayKey, uuid } from './lib/date.js';
@@ -31,23 +34,36 @@ function useTheme() {
 }
 
 export default function App() {
-  const [privateKey, setKey] = useState(() => getPrivateKey());
+  const { user, ready, login, logout } = useAuth();
+  const [bootReady, setBootReady] = useState(false);
+  const uid = user?.uid ?? null;
+
   const [theme, setTheme] = useTheme();
   const [selectedDay, setSelectedDay] = useState(() => toDayKey(new Date()));
   const [navigateTo, setNavigateTo] = useState(null);
-  const todos = useTodos(privateKey);
-  const { schedules, saveAll } = useSchedules(privateKey);
 
+  // 로그인(uid) 확정 시: 기존 privateKey 데이터를 uid로 1회 이전한 뒤 데이터 로드.
+  // 이전이 끝나기 전엔 dataKey=null 로 두어 hooks가 빈 상태를 먼저 읽지 않게 한다.
   useEffect(() => {
-    window.AndroidApp?.savePrivateKey?.(privateKey);
-  }, [privateKey]);
+    if (!uid) { setBootReady(false); return; }
+    let alive = true;
+    (async () => {
+      await migratePrivateKeyToUid(localStorage.getItem('todoPrivateKey'), uid);
+      if (alive) setBootReady(true);
+    })();
+    return () => { alive = false; };
+  }, [uid]);
 
-  // OneSignal 초기화 + privateKey를 external_id로 등록 (멀티기기 알림 묶기).
+  const dataKey = bootReady ? uid : null;
+  const todos = useTodos(dataKey);
+  const { schedules, saveAll } = useSchedules(dataKey);
+
+  // OneSignal 초기화 + uid를 external_id로 등록 (멀티기기 알림 묶기).
   // 예약 발송은 setReminder/일정 저장 시점에 서버(OneSignal)로 등록되므로
   // 여기서 setTimeout 스케줄링은 하지 않는다.
   useEffect(() => {
-    if (privateKey) initOneSignal(privateKey);
-  }, [privateKey]);
+    if (dataKey) initOneSignal(dataKey);
+  }, [dataKey]);
 
   // 'N' 키로 입력창 포커스
   useEffect(() => {
@@ -120,7 +136,7 @@ export default function App() {
     let pushId = null;
     if (reminder) {
       const fireAt = reminderToDate(toDayKey(new Date(startStr)), reminder);
-      pushId = await schedulePush('📅 일정 알림', title, fireAt, privateKey);
+      pushId = await schedulePush('📅 일정 알림', title, fireAt, dataKey);
     }
 
     const newEvent = {
@@ -157,7 +173,7 @@ export default function App() {
     if (reminder) {
       if (pushId) cancelPush(pushId);
       const fireAt = reminderToDate(toDayKey(new Date(event.startStr)), reminder);
-      pushId = await schedulePush('📅 일정 알림', event.title, fireAt, privateKey);
+      pushId = await schedulePush('📅 일정 알림', event.title, fireAt, dataKey);
     }
     saveAll((prev) =>
       prev.map((s) =>
@@ -168,19 +184,8 @@ export default function App() {
     );
   };
 
-  const changeKey = () => {
-    const next = prompt(`PrivateKey는 일정 및 Todo 데이터를 구분하는 고유 키입니다.
-동일한 PrivateKey를 사용하는 기기에서는 같은 일정과 Todo를 조회하고 저장할 수 있습니다.
-
-현재 PrivateKey: ${privateKey}
-
-다른 기기와 데이터를 동기화하려면 동일한 PrivateKey를 입력하세요.
-변경하지 않으려면 [취소]를 눌러주세요.`);
-    console.log(privateKey);
-    if (next) {
-      setPrivateKey(next);
-      location.reload();
-    }
+  const handleLogout = () => {
+    if (confirm('로그아웃 하시겠습니까?')) logout();
   };
 
   const modalInitial = useMemo(
@@ -191,6 +196,15 @@ export default function App() {
     }),
     [editingEvent]
   );
+
+  // 로그인 게이트 (Firebase 사용 시). 위젯 모드는 상호작용 로그인을 띄우지 않고
+  // 기존 세션이 있으면 그대로 표시한다.
+  if (isFirebaseAvailable && !ready) {
+    return <div className="app-loading">불러오는 중…</div>;
+  }
+  if (isFirebaseAvailable && !user && !isWidget) {
+    return <LoginScreen onLogin={login} />;
+  }
 
   return (
     <div className={`app${isWidget ? ' widget-mode' : ''}`}>
@@ -210,15 +224,19 @@ export default function App() {
       {/* 우상단: 키 · 테마 */}
       {!isWidget && (
         <div className="topbar">
-          <button className="key-btn" onClick={changeKey} title="Private Key 변경">
-            🔑
-          </button>
           <button
             className="theme-toggle"
             onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
             title="테마 전환"
           >
             {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
+          <button className="key-btn" onClick={handleLogout} title={`로그아웃${user?.email ? ` (${user.email})` : ''}`}>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <polyline points="16 17 21 12 16 7" />
+              <line x1="21" y1="12" x2="9" y2="12" />
+            </svg>
           </button>
         </div>
       )}

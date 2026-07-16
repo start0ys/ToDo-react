@@ -2,13 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
-import googleCalendarPlugin from '@fullcalendar/google-calendar';
 import koLocale from '@fullcalendar/core/locales/ko';
-import { googleApiKey } from '../lib/firebase.js';
 import { toDayKey } from '../lib/date.js';
 import './calendar.css';
 
-const HOLIDAY_CAL_ID = 'ko.south_korea#holiday@group.v.calendar.google.com';
 const MONTHS = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
 const THIS_YEAR = new Date().getFullYear();
 
@@ -41,18 +38,7 @@ export default function CalendarPanel({
     return () => window.removeEventListener('resize', handler);
   }, []);
 
-  const eventSources = useMemo(() => {
-    const sources = [{ events: schedules }];
-    if (googleApiKey) {
-      sources.push({
-        googleCalendarId: HOLIDAY_CAL_ID,
-        className: 'holiday',
-        color: 'transparent',
-        textColor: '#FF0000',
-      });
-    }
-    return sources;
-  }, [schedules]);
+  const eventSources = useMemo(() => [{ events: schedules }], [schedules]);
 
   const headerToolbar = viewMode
     ? { left: 'title', center: '', right: '' }
@@ -144,10 +130,9 @@ export default function CalendarPanel({
 
       <FullCalendar
         ref={calendarRef}
-        plugins={[dayGridPlugin, interactionPlugin, googleCalendarPlugin]}
+        plugins={[dayGridPlugin, interactionPlugin]}
         initialView="dayGridMonth"
         locale={koLocale}
-        googleCalendarApiKey={googleApiKey || undefined}
         headerToolbar={headerToolbar}
         customButtons={{
           add: { text: '추가', click: onAdd },
