@@ -12,6 +12,7 @@ import { useSchedules } from './hooks/useSchedules.js';
 import { toDayKey, uuid } from './lib/date.js';
 import { textColor } from './lib/color.js';
 import { initOneSignal, schedulePush, cancelPush, reminderToDate } from './lib/onesignal.js';
+import { upsertGCalEvent, deleteGCalEvent } from './lib/googleCalendar.js';
 
 const mode = new URLSearchParams(location.search).get('mode') || '';
 
@@ -121,7 +122,7 @@ export default function App() {
     setEditingEvent(null);
   };
 
-  const handleSaveEvent = async (title, color, reminder) => {
+  const handleSaveEvent = async (title, color, reminder, shared) => {
     if (!title) return;
     const base = editingEvent || pendingSelection;
     if (!base) return;
@@ -132,6 +133,7 @@ export default function App() {
     if (oldPushId) cancelPush(oldPushId);
 
     const startStr = base.startStr ?? base.start;
+    const endStr = base.endStr ?? base.end;
     // 일정 시작일 당일 reminder("HH:MM")에 알림 예약
     let pushId = null;
     if (reminder) {
@@ -139,16 +141,35 @@ export default function App() {
       pushId = await schedulePush('📅 일정 알림', title, fireAt, dataKey);
     }
 
+    // Google 캘린더 동기화: 공유 켜짐→upsert / 공유 해제인데 기존 연동 있음→삭제.
+    // 실패해도 앱 저장은 진행한다(데이터 유실 방지).
+    let googleEventId = editingEvent?.extendedProps?.googleEventId ?? null;
+    if (shared) {
+      try {
+        googleEventId = await upsertGCalEvent({
+          title, start: startStr, end: endStr, allDay: base.allDay, googleEventId,
+        });
+      } catch (e) {
+        console.error('[gcal] 공유 실패:', e);
+        alert('Google 캘린더 공유에 실패했습니다. 일정은 저장됩니다.');
+      }
+    } else if (googleEventId) {
+      try { await deleteGCalEvent(googleEventId); } catch (e) { console.error('[gcal] 공유 해제 실패:', e); }
+      googleEventId = null;
+    }
+
     const newEvent = {
       id: uuid(),
       title,
       start: startStr,
-      end: base.endStr ?? base.end,
+      end: endStr,
       allDay: base.allDay,
       color,
       textColor: textColor(color),
       ...(reminder != null && { reminder }),
       ...(pushId && { pushId }),
+      ...(shared && { shared: true }),
+      ...(googleEventId && { googleEventId }),
     };
     saveAll((prev) => [...prev.filter((s) => s.id !== oldId), newEvent]);
     closeModal();
@@ -158,6 +179,9 @@ export default function App() {
     if (!editingEvent) return;
     if (!confirm(`${editingEvent.title} 을 제거 하시겠습니까?`)) return;
     if (editingEvent.extendedProps?.pushId) cancelPush(editingEvent.extendedProps.pushId);
+    // 공유된 일정이면 Google 캘린더에서도 삭제(실패는 무시).
+    const gid = editingEvent.extendedProps?.googleEventId;
+    if (gid) deleteGCalEvent(gid).catch((e) => console.error('[gcal] 삭제 실패:', e));
     saveAll((prev) => prev.filter((s) => s.id !== editingEvent.id));
     closeModal();
   };
@@ -174,6 +198,14 @@ export default function App() {
       if (pushId) cancelPush(pushId);
       const fireAt = reminderToDate(toDayKey(new Date(event.startStr)), reminder);
       pushId = await schedulePush('📅 일정 알림', event.title, fireAt, dataKey);
+    }
+    // 공유된 일정이면 이동한 날짜를 Google 캘린더에도 반영(실패는 무시).
+    const gid = event.extendedProps?.googleEventId;
+    if (event.extendedProps?.shared && gid) {
+      upsertGCalEvent({
+        title: event.title, start: event.startStr, end: event.endStr,
+        allDay: event.allDay, googleEventId: gid,
+      }).catch((e) => console.error('[gcal] 이동 동기화 실패:', e));
     }
     saveAll((prev) =>
       prev.map((s) =>
@@ -193,6 +225,7 @@ export default function App() {
       title: editingEvent?.title || '',
       color: editingEvent?.backgroundColor || '#3788d8',
       reminder: editingEvent?.extendedProps?.reminder ?? null,
+      shared: editingEvent?.extendedProps?.shared ?? false,
     }),
     [editingEvent]
   );

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { COLOR_PRESETS } from '../lib/color.js';
 import { getPermissionState } from '../lib/notification.js';
 import { ensurePushPermission } from '../lib/onesignal.js';
+import { isGCalConfigured, ensureGCalToken } from '../lib/googleCalendar.js';
 import TimePicker from './TimePicker.jsx';
 import './modal.css';
 
@@ -20,6 +21,7 @@ export default function EventModal({ initial, isEdit, onConfirm, onDelete, onClo
   const [reminderTime,    setReminderTime]    = useState(
     typeof initial.reminder === 'string' ? initial.reminder : nextFiveMin()
   );
+  const [shared, setShared] = useState(!!initial.shared);
   const [showPicker, setShowPicker] = useState(false);
   const timeBtnRef = useRef(null);
 
@@ -42,8 +44,26 @@ export default function EventModal({ initial, isEdit, onConfirm, onDelete, onClo
     setReminderEnabled(checked);
   };
 
+  // 공유를 켤 때 Google 캘린더 권한(토큰)을 미리 확보. 실패/거부 시 토글을 되돌린다.
+  const handleShareToggle = async (e) => {
+    const checked = e.target.checked;
+    if (checked) {
+      try {
+        const token = await ensureGCalToken(true);
+        if (!token) {
+          alert('Google 캘린더 연동에 실패했습니다. 잠시 후 다시 시도해주세요.');
+          return;
+        }
+      } catch {
+        alert('Google 캘린더 권한을 허용해야 공유할 수 있습니다.');
+        return;
+      }
+    }
+    setShared(checked);
+  };
+
   const handleConfirm = () => {
-    onConfirm(title, color, reminderEnabled ? reminderTime : null);
+    onConfirm(title, color, reminderEnabled ? reminderTime : null, shared);
   };
 
   return (
@@ -99,6 +119,22 @@ export default function EventModal({ initial, isEdit, onConfirm, onDelete, onClo
             </button>
           )}
         </div>
+
+        {/* Google 캘린더 공유 */}
+        {isGCalConfigured && (
+          <div className="modal-row modal-reminder-row">
+            <span>공유</span>
+            <label className="reminder-toggle-label">
+              <input
+                type="checkbox"
+                className="reminder-toggle-check"
+                checked={shared}
+                onChange={handleShareToggle}
+              />
+              <span className="reminder-toggle-text">{shared ? '공유함' : '공유 안 함'}</span>
+            </label>
+          </div>
+        )}
 
         <div className="modal-actions">
           <button className="btn btn-primary" onClick={handleConfirm}>확인</button>
