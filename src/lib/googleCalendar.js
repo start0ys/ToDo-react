@@ -28,6 +28,15 @@ const GCAL_EVENT_COLORS = {
   11: '#d50000', // Tomato
 };
 
+// 앱 프리셋 색 → 밝은 Google colorId 지정(자동 근사보다 우선). color.js의 COLOR_PRESETS와 대응.
+const PRESET_COLOR_ID = {
+  '#3788d8': '7',  // 기본 → Peacock (밝은 파랑)
+  '#e65656': '4',  // 지원 → Flamingo (밝은 빨강)
+  '#bc37cd': '3',  // 연차 → Grape (보라)
+  '#0edd1c': '2',  // 여행 → Sage (밝은 초록)
+  '#00c7c7': '7',  // 생일 → Peacock (청록계열)
+};
+
 function hexToRgb(hex) {
   const h = String(hex || '').replace('#', '');
   if (h.length !== 6) return null;
@@ -35,8 +44,22 @@ function hexToRgb(hex) {
   return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
 }
 
-// 앱 색(hex) → 가장 가까운 Google colorId (RGB 유클리드 거리)
+function rgbToHex(r, g, b) {
+  return '#' + [r, g, b].map((v) => Math.max(0, Math.min(255, v)).toString(16).padStart(2, '0')).join('');
+}
+
+// hex를 흰색 쪽으로 섞어 밝게(amt 0~1)
+function lighten(hex, amt = 0.25) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+  const [r, g, b] = rgb.map((v) => Math.round(v + (255 - v) * amt));
+  return rgbToHex(r, g, b);
+}
+
+// 앱 색(hex) → Google colorId. 프리셋이면 지정값, 아니면 가장 가까운 색(RGB 유클리드 거리)
 function nearestGoogleColorId(hex) {
+  const key = String(hex || '').toLowerCase();
+  if (PRESET_COLOR_ID[key]) return PRESET_COLOR_ID[key];
   const rgb = hexToRgb(hex);
   if (!rgb) return undefined;
   let best, bestDist = Infinity;
@@ -48,9 +71,9 @@ function nearestGoogleColorId(hex) {
   return best;
 }
 
-// Google colorId → 앱 표시용 hex (없으면 기본 파랑)
+// Google colorId → 앱 표시용 hex. 앱에서는 조금 더 밝게 보이도록 lighten 적용.
 function colorIdToHex(colorId) {
-  return GCAL_EVENT_COLORS[colorId] || '#039be5';
+  return lighten(GCAL_EVENT_COLORS[colorId] || '#039be5');
 }
 
 let gisPromise = null;
@@ -150,7 +173,11 @@ const nextDay = (dayStr) => toDayKey(addDays(new Date(`${dayStr}T00:00`), 1));
 
 // 앱 일정({title,start,end,allDay,color}) → Google 이벤트 본문
 function toGoogleEvent({ title, start, end, allDay, color }) {
-  const ev = { summary: title };
+  const ev = {
+    summary: title,
+    visibility: 'private',                       // 설정: 비공개
+    reminders: { useDefault: false, overrides: [] }, // 기본 알림 끔(추가 시 알림 안 울림)
+  };
   const colorId = color ? nearestGoogleColorId(color) : undefined;
   if (colorId) ev.colorId = colorId;
   if (allDay) {

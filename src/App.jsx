@@ -16,6 +16,15 @@ import { upsertGCalEvent, deleteGCalEvent, setGCalAccountHint, listGCalEvents, i
 
 const mode = new URLSearchParams(location.search).get('mode') || '';
 
+// 두 시각/날짜 문자열이 같은 시점을 가리키는지(형식 차이 무시). 양쪽 없으면 같다고 본다.
+function sameInstant(a, b) {
+  if (!a && !b) return true;
+  if (!a || !b) return false;
+  const ta = new Date(a).getTime();
+  const tb = new Date(b).getTime();
+  return !Number.isNaN(ta) && !Number.isNaN(tb) && ta === tb;
+}
+
 // 위젯 모드에서 배경을 카드와 동일하게 하여 flat하게 표시
 if (mode === '01' || mode === '02') {
   document.documentElement.classList.add('widget-page');
@@ -72,11 +81,51 @@ export default function App() {
     return () => { alive = false; };
   }, [dataKey, gcalRefresh]);
 
+  // 탭으로 돌아올 때 재조회 → 구글 캘린더에서 수정/추가한 내용을 앱에 반영(팝업 없이 무음).
+  useEffect(() => {
+    if (!dataKey || !isGCalConfigured) return;
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') setGcalRefresh((n) => n + 1);
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    window.addEventListener('focus', onVisible);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisible);
+      window.removeEventListener('focus', onVisible);
+    };
+  }, [dataKey]);
+
   // 내가 공유한 일정은 로컬(schedules)에도 있으므로 googleEventId로 중복 제거
   const googleOnlyEvents = useMemo(() => {
     const mine = new Set(schedules.map((s) => s.googleEventId).filter(Boolean));
     return googleEvents.filter((e) => !mine.has(e.extendedProps.googleEventId));
   }, [googleEvents, schedules]);
+
+  // 역방향 동기화: 내가 공유한 일정을 구글에서 수정하면 그 값(제목/일시)을 로컬에 반영.
+  // - 값이 실제로 다를 때만 저장하고, 저장 시 구글 값으로 맞추므로 다음 비교에서 수렴(무한루프 없음).
+  // - 색상은 앱의 원래 색을 유지(구글 팔레트로 덮어써 흐려지는 것 방지).
+  // - 창 밖으로 옮겨져 조회되지 않은 일정은 삭제로 오인하지 않도록 건드리지 않는다.
+  useEffect(() => {
+    if (!googleEvents.length) return;
+    const byId = new Map(googleEvents.map((e) => [e.extendedProps.googleEventId, e]));
+    let changed = false;
+    const next = schedules.map((s) => {
+      if (!s.googleEventId) return s;
+      const g = byId.get(s.googleEventId);
+      if (!g) return s;
+      if (
+        s.title === g.title &&
+        Boolean(s.allDay) === Boolean(g.allDay) &&
+        sameInstant(s.start, g.start) &&
+        sameInstant(s.end, g.end)
+      ) {
+        return s;
+      }
+      changed = true;
+      return { ...s, title: g.title, start: g.start, end: g.end, allDay: g.allDay };
+    });
+    if (changed) saveAll(next);
+  }, [googleEvents, schedules, saveAll]);
 
   // OneSignal 초기화 + uid를 external_id로 등록 (멀티기기 알림 묶기).
   // 예약 발송은 setReminder/일정 저장 시점에 서버(OneSignal)로 등록되므로
@@ -180,7 +229,10 @@ export default function App() {
         alert('Google 캘린더 공유에 실패했습니다. 일정은 저장됩니다.');
       }
     } else if (googleEventId) {
-      try { await deleteGCalEvent(googleEventId); } catch (e) { console.error('[gcal] 공유 해제 실패:', e); }
+      const removedId = googleEventId;
+      setGoogleEvents((prev) => prev.filter((e) => e.extendedProps?.googleEventId !== removedId));
+      try { await deleteGCalEvent(removedId); } catch (e) { console.error('[gcal] 공유 해제 실패:', e); }
+      setGcalRefresh((n) => n + 1);
       googleEventId = null;
     }
 
@@ -207,7 +259,13 @@ export default function App() {
     if (editingEvent.extendedProps?.pushId) cancelPush(editingEvent.extendedProps.pushId);
     // 공유된 일정이면 Google 캘린더에서도 삭제(실패는 무시).
     const gid = editingEvent.extendedProps?.googleEventId;
-    if (gid) deleteGCalEvent(gid).catch((e) => console.error('[gcal] 삭제 실패:', e));
+    if (gid) {
+      // 조회 캐시에서도 즉시 제거해 삭제가 바로 반영되도록 한다(재조회로 최종 정합성 보장).
+      setGoogleEvents((prev) => prev.filter((e) => e.extendedProps?.googleEventId !== gid));
+      deleteGCalEvent(gid)
+        .then(() => setGcalRefresh((n) => n + 1))
+        .catch((e) => console.error('[gcal] 삭제 실패:', e));
+    }
     saveAll((prev) => prev.filter((s) => s.id !== editingEvent.id));
     closeModal();
   };
