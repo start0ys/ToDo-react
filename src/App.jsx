@@ -12,7 +12,7 @@ import { useSchedules } from './hooks/useSchedules.js';
 import { toDayKey, uuid } from './lib/date.js';
 import { textColor } from './lib/color.js';
 import { initOneSignal, schedulePush, cancelPush, reminderToDate } from './lib/onesignal.js';
-import { upsertGCalEvent, deleteGCalEvent, setGCalAccountHint } from './lib/googleCalendar.js';
+import { upsertGCalEvent, deleteGCalEvent, setGCalAccountHint, listGCalEvents, isGCalConfigured } from './lib/googleCalendar.js';
 
 const mode = new URLSearchParams(location.search).get('mode') || '';
 
@@ -58,6 +58,25 @@ export default function App() {
   const dataKey = bootReady ? uid : null;
   const todos = useTodos(dataKey);
   const { schedules, saveAll } = useSchedules(dataKey);
+
+  // 구글 캘린더에서 읽어온 일정(읽기 전용). 권한이 이미 있으면 팝업 없이 조회.
+  const [googleEvents, setGoogleEvents] = useState([]);
+  const [gcalRefresh, setGcalRefresh] = useState(0);
+  useEffect(() => {
+    if (!dataKey || !isGCalConfigured) { setGoogleEvents([]); return; }
+    let alive = true;
+    const now = new Date();
+    const timeMin = new Date(now.getFullYear(), now.getMonth() - 3, 1).toISOString();
+    const timeMax = new Date(now.getFullYear(), now.getMonth() + 6, 1).toISOString();
+    listGCalEvents(timeMin, timeMax).then((evs) => { if (alive) setGoogleEvents(evs); });
+    return () => { alive = false; };
+  }, [dataKey, gcalRefresh]);
+
+  // 내가 공유한 일정은 로컬(schedules)에도 있으므로 googleEventId로 중복 제거
+  const googleOnlyEvents = useMemo(() => {
+    const mine = new Set(schedules.map((s) => s.googleEventId).filter(Boolean));
+    return googleEvents.filter((e) => !mine.has(e.extendedProps.googleEventId));
+  }, [googleEvents, schedules]);
 
   // OneSignal 초기화 + uid를 external_id로 등록 (멀티기기 알림 묶기).
   // 예약 발송은 setReminder/일정 저장 시점에 서버(OneSignal)로 등록되므로
@@ -118,6 +137,7 @@ export default function App() {
 
   const handleEventClick = (event) => {
     if (event.classNames?.includes('holiday')) return;
+    if (event.extendedProps?.fromGoogle) return; // 구글에서 온 읽기전용 일정은 편집 불가
     setEditingEvent(event);
     setModalOpen(true);
   };
@@ -152,8 +172,9 @@ export default function App() {
     if (shared) {
       try {
         googleEventId = await upsertGCalEvent({
-          title, start: startStr, end: endStr, allDay: base.allDay, googleEventId,
+          title, start: startStr, end: endStr, allDay: base.allDay, color, googleEventId,
         });
+        setGcalRefresh((n) => n + 1); // 구글 쪽 최신 상태 반영
       } catch (e) {
         console.error('[gcal] 공유 실패:', e);
         alert('Google 캘린더 공유에 실패했습니다. 일정은 저장됩니다.');
@@ -209,7 +230,7 @@ export default function App() {
     if (event.extendedProps?.shared && gid) {
       upsertGCalEvent({
         title: event.title, start: event.startStr, end: event.endStr,
-        allDay: event.allDay, googleEventId: gid,
+        allDay: event.allDay, color: event.backgroundColor, googleEventId: gid,
       }).catch((e) => console.error('[gcal] 이동 동기화 실패:', e));
     }
     saveAll((prev) =>
@@ -285,6 +306,7 @@ export default function App() {
         {!isTodoWidget && (
           <CalendarPanel
             schedules={schedules}
+            googleEvents={googleOnlyEvents}
             checkMap={todos.checkMap}
             viewMode={isCalendarWidget}
             selectedDay={selectedDay}

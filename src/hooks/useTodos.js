@@ -20,7 +20,12 @@ export function useTodos(privateKey) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    // 키가 바뀔 때마다 로딩을 다시 시작하도록 loaded를 리셋한다.
+    // (리셋하지 않으면 로그인 전 privateKey=null 단계에서 loaded=true가 된 뒤
+    //  실제 데이터 로드 시 값이 안 바뀌어 자동이관 effect가 재실행되지 않는다.)
+    setLoaded(false);
     if (!isFirebaseAvailable || !privateKey) {
+      setAllTodos([]);
       setLoaded(true);
       return;
     }
@@ -35,27 +40,37 @@ export function useTodos(privateKey) {
     return () => { alive = false; };
   }, [privateKey]);
 
-  // 자동 이관: 전날 carryOver=true이고 미완료(del=false)인 항목만 오늘로 복사
-  // 전날 기준: 완료된 항목이나 그 이전 날짜 항목은 이관 대상에서 제외
+  // 자동 이관: carryOver=true이고 아직 미완료인 항목을 오늘로 복사.
+  // - 텍스트별로 '오늘 이전의 가장 최근 인스턴스'를 찾아, 그것이 미완료+carryOver일 때만 이관.
+  //   → 하루 이상 앱을 안 열어 생긴 공백(어제 데이터가 없는 경우)도 정상 이관되고,
+  //     더 최근에 완료한 항목(del=true)은 재이관되지 않는다.
   useEffect(() => {
     if (!loaded) return;
 
     const today = toDayKey(new Date());
-    const yesterday = toDayKey(addDays(new Date(), -1));
 
     // 오늘 이미 있는 활성 항목의 텍스트 집합 (동일 텍스트 중복 이관 방지)
     const todayActiveTexts = new Set(
       allTodos.filter((t) => t.day === today && !t.del).map((t) => t.text)
     );
 
-    // 전날 항목 중 carryOver=true이고 미완료인 것만 수집 (같은 텍스트 중복 제거)
-    const seenTexts = new Set();
-    const toCarry = allTodos.filter((t) => {
-      if (!t.carryOver || t.del || t.day !== yesterday) return false;
-      if (todayActiveTexts.has(t.text) || seenTexts.has(t.text)) return false;
-      seenTexts.add(t.text);
-      return true;
-    });
+    // 텍스트별로 today 이전의 가장 최근 인스턴스를 고른다.
+    // (같은 날 중복이면 미완료 항목을 우선)
+    const latestByText = new Map();
+    for (const t of allTodos) {
+      if (!t.day || t.day >= today) continue;
+      const cur = latestByText.get(t.text);
+      if (!cur || t.day > cur.day || (t.day === cur.day && cur.del && !t.del)) {
+        latestByText.set(t.text, t);
+      }
+    }
+
+    // 가장 최근 인스턴스가 carryOver + 미완료 + 오늘 미존재인 것만 이관
+    const toCarry = [];
+    for (const [text, t] of latestByText) {
+      if (!t.carryOver || t.del || todayActiveTexts.has(text)) continue;
+      toCarry.push(t);
+    }
 
     if (toCarry.length === 0) return;
 

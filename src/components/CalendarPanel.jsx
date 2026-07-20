@@ -11,6 +11,7 @@ const THIS_YEAR = new Date().getFullYear();
 
 export default function CalendarPanel({
   schedules,
+  googleEvents,
   checkMap,
   viewMode,
   selectedDay,
@@ -38,7 +39,10 @@ export default function CalendarPanel({
     return () => window.removeEventListener('resize', handler);
   }, []);
 
-  const eventSources = useMemo(() => [{ events: schedules }], [schedules]);
+  const eventSources = useMemo(
+    () => [{ events: schedules }, { events: googleEvents || [] }],
+    [schedules, googleEvents]
+  );
 
   const headerToolbar = viewMode
     ? { left: 'title', center: '', right: '' }

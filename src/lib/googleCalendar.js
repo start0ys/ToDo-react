@@ -3,6 +3,7 @@
 // - 액세스 토큰은 메모리에만 두고 저장하지 않는다. 만료(~1h) 시 재요청.
 // - CLIENT_ID 미설정이면 전부 no-op → 기존 앱이 깨지지 않는다.
 import { toDayKey, addDays } from './date';
+import { textColor } from './color';
 
 const CLIENT_ID = import.meta.env.VITE_GOOGLE_OAUTH_CLIENT_ID || '';
 const SCOPE = 'https://www.googleapis.com/auth/calendar.events';
@@ -10,6 +11,47 @@ const GIS_SRC = 'https://accounts.google.com/gsi/client';
 const CAL_BASE = 'https://www.googleapis.com/calendar/v3';
 
 export const isGCalConfigured = Boolean(CLIENT_ID);
+
+// Google 캘린더 이벤트 색상표(colorId → 대표 hex). Google은 임의 hex가 아니라
+// 이 11색의 colorId만 받으므로, 앱의 색을 가장 가까운 색으로 매핑한다.
+const GCAL_EVENT_COLORS = {
+  1: '#7986cb',  // Lavender
+  2: '#33b679',  // Sage
+  3: '#8e24aa',  // Grape
+  4: '#e67c73',  // Flamingo
+  5: '#f6bf26',  // Banana
+  6: '#f4511e',  // Tangerine
+  7: '#039be5',  // Peacock
+  8: '#616161',  // Graphite
+  9: '#3f51b5',  // Blueberry
+  10: '#0b8043', // Basil
+  11: '#d50000', // Tomato
+};
+
+function hexToRgb(hex) {
+  const h = String(hex || '').replace('#', '');
+  if (h.length !== 6) return null;
+  const n = parseInt(h, 16);
+  return [(n >> 16) & 0xff, (n >> 8) & 0xff, n & 0xff];
+}
+
+// 앱 색(hex) → 가장 가까운 Google colorId (RGB 유클리드 거리)
+function nearestGoogleColorId(hex) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return undefined;
+  let best, bestDist = Infinity;
+  for (const [id, c] of Object.entries(GCAL_EVENT_COLORS)) {
+    const [r, g, b] = hexToRgb(c);
+    const d = (r - rgb[0]) ** 2 + (g - rgb[1]) ** 2 + (b - rgb[2]) ** 2;
+    if (d < bestDist) { bestDist = d; best = id; }
+  }
+  return best;
+}
+
+// Google colorId → 앱 표시용 hex (없으면 기본 파랑)
+function colorIdToHex(colorId) {
+  return GCAL_EVENT_COLORS[colorId] || '#039be5';
+}
 
 let gisPromise = null;
 let tokenClient = null;
@@ -86,8 +128,8 @@ export async function ensureGCalToken(interactive = true) {
   });
 }
 
-async function apiCall(method, path, body) {
-  const token = await ensureGCalToken(true);
+async function apiCall(method, path, body, interactive = true) {
+  const token = await ensureGCalToken(interactive);
   if (!token) throw new Error('Google 캘린더 토큰 없음');
   const res = await fetch(`${CAL_BASE}${path}`, {
     method,
@@ -106,9 +148,11 @@ async function apiCall(method, path, body) {
 const dayOnly = (s) => String(s).slice(0, 10);
 const nextDay = (dayStr) => toDayKey(addDays(new Date(`${dayStr}T00:00`), 1));
 
-// 앱 일정({title,start,end,allDay}) → Google 이벤트 본문
-function toGoogleEvent({ title, start, end, allDay }) {
+// 앱 일정({title,start,end,allDay,color}) → Google 이벤트 본문
+function toGoogleEvent({ title, start, end, allDay, color }) {
   const ev = { summary: title };
+  const colorId = color ? nearestGoogleColorId(color) : undefined;
+  if (colorId) ev.colorId = colorId;
   if (allDay) {
     // 종일: date(YYYY-MM-DD). Google 종일 end는 배타적이므로 최소 start+1일.
     const startDay = dayOnly(start);
@@ -142,6 +186,61 @@ export async function upsertGCalEvent(schedule) {
   }
   const created = await apiCall('POST', `/calendars/primary/events`, body);
   return created.id;
+}
+
+// Google 이벤트 → 앱(FullCalendar) 이벤트 형태. 읽기 전용으로 표시.
+function fromGoogleEvent(ev) {
+  const allDay = Boolean(ev.start?.date);
+  const start = ev.start?.date ?? ev.start?.dateTime;
+  const end = ev.end?.date ?? ev.end?.dateTime;
+  const color = colorIdToHex(ev.colorId);
+  return {
+    id: `gcal:${ev.id}`,
+    title: ev.summary || '(제목 없음)',
+    start,
+    end,
+    allDay,
+    color,
+    textColor: textColor(color),
+    editable: false,
+    extendedProps: { fromGoogle: true, googleEventId: ev.id },
+  };
+}
+
+/**
+ * primary 캘린더의 일정을 조회해 앱 이벤트 배열로 반환.
+ * - 이미 부여된 권한이 있으면 무음('none')으로 토큰을 얻어 팝업 없이 조회한다.
+ * - 권한이 없거나 실패하면 빈 배열([])을 반환(앱 동작에 영향 없음).
+ * @param {string} timeMin ISO 문자열(조회 시작)
+ * @param {string} timeMax ISO 문자열(조회 끝)
+ */
+export async function listGCalEvents(timeMin, timeMax) {
+  if (!isGCalConfigured) return [];
+  // 사용자 제스처 없이 호출되므로 무음 토큰만 시도(팝업 금지).
+  let token;
+  try {
+    token = await ensureGCalToken(false);
+  } catch {
+    return [];
+  }
+  if (!token) return [];
+
+  const params = new URLSearchParams({
+    timeMin,
+    timeMax,
+    singleEvents: 'true',
+    orderBy: 'startTime',
+    maxResults: '2500',
+  });
+  try {
+    const data = await apiCall('GET', `/calendars/primary/events?${params}`, null, false);
+    return (data?.items || [])
+      .filter((ev) => ev.status !== 'cancelled' && (ev.start?.date || ev.start?.dateTime))
+      .map(fromGoogleEvent);
+  } catch (e) {
+    console.error('[gcal] 일정 조회 실패:', e);
+    return [];
+  }
 }
 
 /** primary 캘린더에서 이벤트 삭제(이미 없으면 무시). */
