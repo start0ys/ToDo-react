@@ -49,7 +49,7 @@ export default function EventModal({ initial, isEdit, onConfirm, onDelete, onClo
     const checked = e.target.checked;
     if (checked) {
       try {
-        const token = await ensureGCalToken(true);
+        const token = await ensureGCalToken('interactive');
         if (!token) {
           alert('Google 캘린더 연동에 실패했습니다. 잠시 후 다시 시도해주세요.');
           return;

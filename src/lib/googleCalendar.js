@@ -84,6 +84,21 @@ let pendingResolve = null;
 let pendingReject = null;
 let accountHint = ''; // 앱 로그인(Firebase) 계정 이메일 → 캘린더 권한도 같은 계정으로 강제
 
+// 액세스 토큰을 세션 저장소에 캐싱 → 새로고침해도 재요청(팝업 깜빡임) 없이 재사용.
+// 토큰은 짧은 수명(~1h)이고 sessionStorage는 탭 종료 시 사라지므로 노출 위험을 최소화.
+const TOKEN_KEY = 'gcalToken';
+try {
+  const raw = sessionStorage.getItem(TOKEN_KEY);
+  if (raw) {
+    const { t, e } = JSON.parse(raw);
+    if (t && e && Date.now() < e) { accessToken = t; tokenExpiry = e; }
+  }
+} catch { /* 무시 */ }
+
+function saveToken() {
+  try { sessionStorage.setItem(TOKEN_KEY, JSON.stringify({ t: accessToken, e: tokenExpiry })); } catch { /* 무시 */ }
+}
+
 /**
  * 캘린더 권한 요청 시 사용할 계정 힌트(로그인 이메일)를 지정.
  * 브라우저에 여러 구글 계정이 있어도 앱 로그인 계정으로 고정하기 위함.
@@ -120,6 +135,7 @@ async function ensureTokenClient() {
         accessToken = resp.access_token;
         // 만료 60초 전에 재요청하도록 여유를 둔다.
         tokenExpiry = Date.now() + (Number(resp.expires_in) - 60) * 1000;
+        saveToken();
         pendingResolve?.(accessToken);
       }
       pendingResolve = pendingReject = null;
@@ -128,20 +144,24 @@ async function ensureTokenClient() {
 }
 
 /**
- * 유효한 액세스 토큰 확보. 반드시 사용자 클릭/드래그 핸들러 안에서 호출(팝업 차단 방지).
- * @param {boolean} interactive true면 필요 시 동의 팝업 허용, false면 무음('none')
+ * 유효한 액세스 토큰 확보.
+ * @param {'interactive'|'cache'|boolean} mode
+ *   - 'interactive'(=true): 필요 시 동의 팝업 허용. 반드시 사용자 클릭/드래그 안에서 호출.
+ *   - 'cache': 캐시된 유효 토큰만 반환하고 없으면 null. GIS를 호출하지 않아 팝업/깜빡임 없음(백그라운드용).
  * @returns {Promise<string|null>}
  */
-export async function ensureGCalToken(interactive = true) {
+export async function ensureGCalToken(mode = 'interactive') {
+  if (mode === true) mode = 'interactive';
   if (!isGCalConfigured) return null;
   if (accessToken && Date.now() < tokenExpiry) return accessToken;
+  if (mode === 'cache') return null; // 팝업 없이 캐시만 확인
   await ensureTokenClient();
   return new Promise((resolve, reject) => {
     pendingResolve = resolve;
     pendingReject = reject;
     try {
       tokenClient.requestAccessToken({
-        prompt: interactive ? '' : 'none',
+        prompt: '',
         ...(accountHint && { hint: accountHint }),
       });
     } catch (e) {
@@ -151,8 +171,8 @@ export async function ensureGCalToken(interactive = true) {
   });
 }
 
-async function apiCall(method, path, body, interactive = true) {
-  const token = await ensureGCalToken(interactive);
+async function apiCall(method, path, body, mode = 'interactive') {
+  const token = await ensureGCalToken(mode);
   if (!token) throw new Error('Google 캘린더 토큰 없음');
   const res = await fetch(`${CAL_BASE}${path}`, {
     method,
@@ -236,20 +256,14 @@ function fromGoogleEvent(ev) {
 
 /**
  * primary 캘린더의 일정을 조회해 앱 이벤트 배열로 반환.
- * - 이미 부여된 권한이 있으면 무음('none')으로 토큰을 얻어 팝업 없이 조회한다.
- * - 권한이 없거나 실패하면 빈 배열([])을 반환(앱 동작에 영향 없음).
+ * - 백그라운드 호출이므로 '캐시된 토큰'이 있을 때만 조회한다(팝업/깜빡임 없음).
+ * - 캐시 토큰이 없으면(공유를 한 번도 안 했거나 만료) 빈 배열을 반환 → 다음 '공유' 시 토큰 확보 후 표시.
  * @param {string} timeMin ISO 문자열(조회 시작)
  * @param {string} timeMax ISO 문자열(조회 끝)
  */
 export async function listGCalEvents(timeMin, timeMax) {
   if (!isGCalConfigured) return [];
-  // 사용자 제스처 없이 호출되므로 무음 토큰만 시도(팝업 금지).
-  let token;
-  try {
-    token = await ensureGCalToken(false);
-  } catch {
-    return [];
-  }
+  const token = await ensureGCalToken('cache'); // 팝업 없이 캐시 토큰만
   if (!token) return [];
 
   const params = new URLSearchParams({
@@ -260,7 +274,7 @@ export async function listGCalEvents(timeMin, timeMax) {
     maxResults: '2500',
   });
   try {
-    const data = await apiCall('GET', `/calendars/primary/events?${params}`, null, false);
+    const data = await apiCall('GET', `/calendars/primary/events?${params}`, null, 'cache');
     return (data?.items || [])
       .filter((ev) => ev.status !== 'cancelled' && (ev.start?.date || ev.start?.dateTime))
       .map(fromGoogleEvent);
